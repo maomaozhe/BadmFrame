@@ -1,85 +1,85 @@
-# Architecture Notes
+# 架构说明
 
-This document records the intended architecture direction for BadmFrame. It should describe real decisions once they exist and clearly label placeholders while the stack is undecided.
+本文记录 BadmFrame 的目标架构方向。已经做出的决策应在这里真实描述；尚未决定的部分必须明确标记为占位，不要伪装成已实现能力。
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- No frontend framework has been selected.
-- No backend/runtime model has been selected.
-- No video processing engine has been selected.
-- The application should be designed around local video workflows first.
+- 尚未选择前端框架。
+- 尚未选择后端或运行时模型。
+- 尚未选择视频处理引擎。
+- 应用应优先围绕本地视频工作流设计。
 
-## Target Architecture Shape
+## 目标架构形态
 
-BadmFrame will likely need these subsystems:
+BadmFrame 未来大概率需要这些子系统：
 
-- User interface: project browser, video preview, timeline, clip list, annotation controls, export status.
-- Project model: source media references, clip ranges, annotations, export settings, and project metadata.
-- Video pipeline: import validation, preview generation if needed, trimming, encoding, and export.
-- Storage: local project files plus references to source media and generated exports.
-- Job execution: long-running video tasks with progress, cancellation, retry, and failure messages.
+- 用户界面：项目浏览、视频预览、时间线、片段列表、标注控件、导出状态。
+- 项目模型：源媒体引用、片段范围、标注、导出设置和项目元数据。
+- 视频流程：导入校验、必要时生成预览、裁剪、编码和导出。
+- 存储：本地项目文件、源媒体引用和导出文件。
+- 任务执行：长时间视频任务需要进度、取消、重试和失败信息。
 
-## Frontend Placeholder
+## 前端占位
 
-The frontend should eventually provide:
+前端未来应提供：
 
-- Fast timeline navigation.
-- Clear clip boundary editing.
-- Annotation controls that do not obscure the video.
-- Export progress and failure recovery.
+- 快速的时间线导航。
+- 清晰的片段边界编辑。
+- 不遮挡视频内容的标注控件。
+- 导出进度和失败恢复入口。
 
-Technology decision is pending. Do not choose a framework without recording an ADR.
+技术决策仍未确定。不要在没有 ADR 的情况下选择框架。
 
-## Backend And Runtime Placeholder
+## 后端与运行时占位
 
-The runtime should eventually provide:
+运行时未来应提供：
 
-- Access to local files.
-- Durable project persistence.
-- Background video processing jobs.
-- A clean boundary between UI state and media-processing state.
+- 本地文件访问能力。
+- 持久化项目存储。
+- 后台视频处理任务。
+- UI 状态与媒体处理状态之间清晰的边界。
 
-Technology decision is pending. Options may include a web app, desktop app, or local-first hybrid.
+技术决策仍未确定。可选方向包括 Web 应用、桌面应用或本地优先的混合形态。
 
-## Video Processing Placeholder
+## 视频处理占位
 
-The video engine should eventually support:
+视频引擎未来应支持：
 
-- Reading common phone and camera video formats.
-- Accurate or near-accurate trimming.
-- Exporting common shareable formats.
-- Clear error messages when codecs or files are unsupported.
+- 读取常见手机和相机视频格式。
+- 精确或接近精确的裁剪。
+- 导出常见的可分享格式。
+- 当编解码器或文件不受支持时，给出清晰错误信息。
 
-FFmpeg is a likely candidate, but this is not yet a decision.
+FFmpeg 是可能候选，但这还不是正式决策。
 
-## Storage Placeholder
+## 存储占位
 
-The storage model should eventually distinguish:
+存储模型未来应区分：
 
-- Source videos, which may be large and should not be copied unless necessary.
-- Project metadata, which should be small and durable.
-- Generated previews or caches, which can be recreated.
-- Exported clips, which are user-facing artifacts.
+- 源视频：体积通常很大，除非必要不应复制。
+- 项目元数据：应小而持久。
+- 预览或缓存文件：应可重新生成。
+- 导出片段：用户真正关心的输出产物。
 
-## Open Questions
+## 未决问题
 
-- Should the product be a desktop app for reliable local file access?
-- Should video processing run in-process, in a worker process, or in a separate service?
-- What project file format should be used?
-- How should missing source media be handled when a project is reopened?
+- 产品是否应该做成桌面应用，以获得可靠的本地文件访问？
+- 视频处理应该在主进程、工作进程，还是独立服务中执行？
+- 项目文件格式应该是什么？
+- 重新打开项目时，如果源媒体缺失，应该如何处理？
 
-## Agent Notes
+## Agent 注意事项
 
-- Do not present placeholder architecture as implemented behavior.
-- When adding code, keep media processing behind an explicit boundary so UI code does not directly shell out everywhere.
-- Record major stack, storage, and pipeline decisions in `docs/decisions/`.
+- 不要把占位架构描述成已实现行为。
+- 添加代码时，应把媒体处理放在明确边界后面，避免 UI 代码到处直接调用 shell。
+- 重大技术栈、存储和视频流程决策应记录到 `docs/decisions/`。
 
-## Update Triggers
+## 更新触发条件
 
-Update this file when:
+出现以下情况时更新本文件：
 
-- A technology stack is selected.
-- Repository structure changes.
-- Project file format is chosen.
-- Video processing strategy changes.
-- Background job behavior is implemented.
+- 技术栈被选定。
+- 仓库结构变化。
+- 项目文件格式被选定。
+- 视频处理策略变化。
+- 后台任务行为被实现。

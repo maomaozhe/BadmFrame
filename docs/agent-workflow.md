@@ -1,83 +1,83 @@
-# Agent Workflow
+# Agent 工作流
 
-This document defines how coding agents should work in BadmFrame.
+本文定义编码 agent 在 BadmFrame 中应如何工作。
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- This repository begins with documentation, not app code.
-- `AGENTS.md` is the entry point for all agent work.
-- Architecture and product decisions should be recorded before they become hard to reverse.
+- 仓库从文档开始，而不是应用代码。
+- `AGENTS.md` 是所有 agent 工作的入口。
+- 架构和产品决策应在变得难以回退前被记录下来。
 
-## Before Starting Work
+## 开始工作前
 
-For any non-trivial task:
+对于任何非简单任务：
 
-- Read `AGENTS.md`.
-- Read the most relevant product, architecture, or video pipeline document.
-- Check existing decision records under `docs/decisions/`.
-- Inspect the current repository before assuming structure or stack.
+- 阅读 `AGENTS.md`。
+- 阅读最相关的产品、架构或视频流程文档。
+- 查看 `docs/decisions/` 下已有决策记录。
+- 先检查当前仓库，再假设结构或技术栈。
 
-## During Work
+## 工作过程中
 
-- Keep changes scoped to the user request.
-- Prefer established project patterns once they exist.
-- Add or update tests when behavior changes.
-- Update docs when commands, architecture, product behavior, or workflow changes.
-- Preserve user changes and unrelated files.
+- 变更范围应贴合用户请求。
+- 一旦项目形成既有模式，优先遵循既有模式。
+- 行为变化时添加或更新测试。
+- 命令、架构、产品行为或工作流变化时更新文档。
+- 保留用户变更和无关文件。
 
-## Decision Records
+## 决策记录
 
-Create a new ADR in `docs/decisions/` when a change selects or materially changes:
+当变更选择或显著改变以下内容时，在 `docs/decisions/` 中创建新的 ADR：
 
-- App platform or framework.
-- Video processing engine.
-- Project file format.
-- Storage layout.
-- Export strategy.
-- Task/job execution model.
+- 应用平台或框架。
+- 视频处理引擎。
+- 项目文件格式。
+- 存储布局。
+- 导出策略。
+- 任务或作业执行模型。
 
-Use a filename like:
+文件名格式示例：
 
 ```text
 0002-short-decision-title.md
 ```
 
-## Testing Expectations
+## 测试预期
 
-Until code exists, documentation changes should be checked by reading links and confirming the agent entry flow works.
+在代码出现之前，文档变更应通过阅读链接和确认 agent 入口流程来检查。
 
-Once code exists:
+代码出现之后：
 
-- Add targeted tests for changed behavior.
-- Run the relevant test command before finalizing.
-- If a command cannot run, report why and what remains unverified.
+- 为变化的行为添加有针对性的测试。
+- 结束前运行相关测试命令。
+- 如果命令无法运行，说明原因和未验证内容。
 
-## Change Summary Expectations
+## 完成任务时的说明
 
-When finishing a task, report:
+任务结束时应说明：
 
-- What changed.
-- Which files matter most.
-- What validation was run.
-- Any remaining gaps or assumptions.
+- 改了什么。
+- 哪些文件最重要。
+- 做了什么验证。
+- 还有哪些缺口或假设。
 
-## Open Questions
+## 未决问题
 
-- What commit and PR conventions should be used?
-- Should task specs live in `tasks/`, issues, or another tracker?
-- Should the project use ADRs for product decisions as well as technical decisions?
+- 提交和 PR 规范应是什么？
+- 任务规格应放在 `tasks/`、issue，还是其他追踪系统？
+- ADR 是否同时用于产品决策和技术决策？
 
-## Agent Notes
+## Agent 注意事项
 
-- Treat docs as the project memory, not decoration.
-- Keep future agents oriented by updating links and commands as soon as they become real.
-- Do not add speculative implementation detail that has not been requested or decided.
+- 把文档当作项目记忆，而不是装饰。
+- 一旦链接和命令变成真实内容，就及时更新，帮助后续 agent 接手。
+- 不要添加尚未请求或尚未决策的臆测性实现细节。
 
-## Update Triggers
+## 更新触发条件
 
-Update this file when:
+出现以下情况时更新本文件：
 
-- The development workflow changes.
-- Test, build, or run commands become real.
-- Review or PR conventions are selected.
-- Agent expectations change.
+- 开发工作流变化。
+- 测试、构建或运行命令变成真实命令。
+- Review 或 PR 规范被选定。
+- Agent 预期发生变化。

@@ -1,43 +1,43 @@
-# BadmFrame Agent Guide
+# BadmFrame Agent 指南
 
-BadmFrame is a badminton-focused video editing application. The project is currently in the context-building stage: no application code or technology stack has been chosen yet.
+BadmFrame 是一个面向羽毛球场景的视频剪辑应用。项目当前处在上下文建设阶段：还没有选择应用技术栈，也还没有应用代码。
 
-This file is the entry point for coding agents. Read it first, then follow the linked documents before making changes.
+这是编码 agent 的入口文档。接任务前先读本文件，再按下方链接阅读相关上下文。
 
-## Current State
+## 当前状态
 
-- Repository status: documentation scaffold only.
-- Product direction: a video editing and annotation tool for badminton footage.
-- MVP direction: help users import badminton clips, select useful moments, trim them, add simple labels or annotations, and export shareable clips.
-- Technology stack: undecided.
+- 仓库状态：只有文档脚手架。
+- 产品方向：面向羽毛球视频的剪辑和标注工具。
+- MVP 方向：帮助用户导入羽毛球视频，找到有价值的片段，裁剪、添加简单标签或注释，并导出可分享的视频片段。
+- 技术栈：未决定。
 
-## Recommended Reading Order
+## 推荐阅读顺序
 
-1. [Product Context](docs/product.md)
-2. [Architecture Notes](docs/architecture.md)
-3. [Video Pipeline](docs/video-pipeline.md)
-4. [Agent Workflow](docs/agent-workflow.md)
-5. [Decision Records](docs/decisions/0001-project-context-docs.md)
+1. [产品上下文](docs/product.md)
+2. [架构说明](docs/architecture.md)
+3. [视频处理流程](docs/video-pipeline.md)
+4. [Agent 工作流](docs/agent-workflow.md)
+5. [决策记录](docs/decisions/0001-project-context-docs.md)
 
-## Development Conventions
+## 开发约定
 
-- Prefer small, reversible changes with clear intent.
-- Keep documentation updated when a code change changes product behavior, architecture, commands, or workflow.
-- Use Markdown for project context and decision records.
-- Keep large binary files, especially raw videos, out of the repository unless a future policy explicitly allows them.
-- Prefer realistic badminton workflows over generic video-editor assumptions.
+- 优先做小而清晰、容易回退的变更。
+- 当代码变更影响产品行为、架构、命令或工作流时，同步更新文档。
+- 项目上下文和决策记录使用 Markdown。
+- 不要把大体积二进制文件，尤其是原始视频，直接提交到仓库，除非未来有明确策略。
+- 优先服务真实的羽毛球复盘、教学和剪辑工作流，不要默认按通用视频剪辑器设计。
 
-## Do Not
+## 不要做
 
-- Do not introduce an application framework without recording the decision in `docs/decisions/`.
-- Do not commit large media files directly to the repository.
-- Do not treat BadmFrame as a generic short-video editor unless product scope changes.
-- Do not overwrite user work or generated assets without checking their purpose.
-- Do not remove context docs unless replacing them with a clearer structure.
+- 不要在没有 ADR 的情况下引入应用框架。
+- 不要直接提交大体积媒体文件。
+- 不要把 BadmFrame 当成通用短视频剪辑器，除非产品范围被明确修改。
+- 不要覆盖用户工作或生成资产，除非已经确认其用途。
+- 不要删除上下文文档，除非用更清晰的结构替代。
 
-## Common Commands
+## 常用命令
 
-These are placeholders until the actual stack exists.
+这些命令还是占位内容，等真实技术栈确定后再补齐。
 
 ```bash
 # install dependencies
@@ -53,32 +53,32 @@ TODO
 TODO
 ```
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- The project starts with an agent-friendly documentation structure.
-- Documentation is written in Chinese-facing project language where helpful, while commands and code identifiers remain English.
-- The first implementation phase should still validate product and technical choices before writing core app code.
+- 项目从 agent 友好的文档结构开始。
+- 文档以中文为主，命令和代码标识符保留英文。
+- 第一阶段仍应先验证产品和技术选择，再进入核心应用代码开发。
 
-## Open Questions
+## 未决问题
 
-- Which app shape should be used: desktop app, web app, or local-first hybrid?
-- Which video engine should be used: FFmpeg directly, a wrapper library, or a media framework?
-- Should annotation focus on text labels, court overlays, shuttle trajectory, player tags, or coaching notes first?
-- Where should projects and exported clips be stored?
+- 应用形态应该是桌面应用、Web 应用，还是本地优先的混合形态？
+- 视频引擎应该直接使用 FFmpeg、使用封装库，还是选择其他媒体框架？
+- 标注能力第一优先级是什么：文字标签、球场覆盖层、球路轨迹、球员标签，还是教练点评？
+- 项目文件和导出视频应该存储在哪里？
 
-## Agent Notes
+## Agent 注意事项
 
-- Start every non-trivial task by reading this file and the most relevant linked docs.
-- Add new decisions as ADRs under `docs/decisions/`.
-- If you add runnable code, update the command placeholders above.
-- If you add directories with durable meaning, document them in `docs/architecture.md`.
+- 每个非简单任务开始前，先读本文件和最相关的链接文档。
+- 新增重要决策时，在 `docs/decisions/` 下添加 ADR。
+- 如果新增可运行代码，请更新上面的命令占位。
+- 如果新增具有长期含义的目录，请同步更新 `docs/architecture.md`。
 
-## Update Triggers
+## 更新触发条件
 
-Update this file when:
+出现以下情况时更新本文件：
 
-- The technology stack is selected.
-- Project commands become real.
-- Repository structure changes.
-- MVP scope changes.
-- Agent workflow expectations change.
+- 技术栈被选定。
+- 项目命令变成真实命令。
+- 仓库结构发生变化。
+- MVP 范围发生变化。
+- Agent 工作流预期发生变化。

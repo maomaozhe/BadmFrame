@@ -1,98 +1,98 @@
-# Video Pipeline
+# 视频处理流程
 
-This document describes the intended media workflow for BadmFrame. It focuses on badminton editing needs and should become more precise as implementation decisions are made.
+本文描述 BadmFrame 预期的媒体工作流。它聚焦羽毛球剪辑需求，并应随着实现决策逐步变得更精确。
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- Video work is local-first.
-- MVP video editing should focus on import, preview, manual clip selection, simple annotation, and export.
-- Automatic badminton analysis is future scope unless explicitly requested.
+- 视频处理以本地优先为前提。
+- MVP 视频编辑应聚焦导入、预览、手动选段、简单标注和导出。
+- 自动羽毛球分析属于未来范围，除非用户明确要求。
 
-## Intended Flow
+## 预期流程
 
-1. Import or reference a source video.
-2. Validate that the file can be read.
-3. Load a preview for scrubbing and selection.
-4. Let the user mark clip start and end times.
-5. Attach simple annotations or labels to clips.
-6. Queue export jobs for selected clips.
-7. Report progress, completion, cancellation, or failure.
-8. Preserve project metadata so clips can be revised later.
+1. 导入或引用源视频。
+2. 校验文件是否可读取。
+3. 加载用于浏览和选段的预览。
+4. 允许用户标记片段起止时间。
+5. 为片段添加简单标注或标签。
+6. 将选中片段加入导出任务队列。
+7. 展示进度、完成、取消或失败状态。
+8. 保存项目元数据，使片段以后可以继续调整。
 
-## Import
+## 导入
 
-The import step should eventually capture:
+导入步骤未来应记录：
 
-- Original file path or media identifier.
-- Duration, dimensions, frame rate, codec, and audio presence when available.
-- Whether the file is readable by the chosen video engine.
-- Any warning that may affect trimming or export.
+- 原始文件路径或媒体标识。
+- 可获得时记录时长、分辨率、帧率、编码格式和音频信息。
+- 文件是否能被选定的视频引擎读取。
+- 可能影响裁剪或导出的警告。
 
-## Timeline And Clip Selection
+## 时间线与选段
 
-The timeline should eventually support:
+时间线未来应支持：
 
-- Scrubbing to inspect rallies and training moments.
-- Start and end markers for a clip.
-- Clip names or labels.
-- A list of selected clips within the project.
+- 拖动浏览回合和训练瞬间。
+- 设置片段起点和终点。
+- 为片段命名或添加标签。
+- 在项目中展示已选择片段列表。
 
-The MVP can use manual selection only.
+MVP 可以只支持手动选段。
 
-## Annotation
+## 标注
 
-Annotations should start simple:
+标注能力应从简单形式开始：
 
-- Text note.
-- Shot or rally label.
-- Player or side label if needed.
-- Coaching comment if needed.
+- 文本备注。
+- 拍型或回合标签。
+- 必要时添加球员或场地侧标签。
+- 必要时添加教练点评。
 
-Visual overlays, motion tracking, and shuttle trajectory are future scope.
+视觉覆盖层、运动追踪和球路轨迹属于未来范围。
 
-## Export
+## 导出
 
-Export should eventually support:
+导出未来应支持：
 
-- Exporting a single selected clip.
-- Exporting multiple selected clips.
-- Keeping audio when available unless the user chooses otherwise.
-- A small set of shareable presets once target platforms are known.
+- 导出单个选中片段。
+- 批量导出多个选中片段。
+- 默认保留音频，除非用户选择关闭。
+- 在目标平台明确后提供少量分享预设。
 
-Exact formats and codecs are undecided.
+具体格式和编码仍未决定。
 
-## Failure Recovery
+## 失败恢复
 
-The pipeline should eventually handle:
+视频流程未来应处理：
 
-- Unsupported media.
-- Missing source video.
-- Export cancellation.
-- Export overwrite conflicts.
-- Failed encoder process.
-- Insufficient disk space if detectable.
+- 不支持的媒体文件。
+- 源视频缺失。
+- 导出取消。
+- 导出文件覆盖冲突。
+- 编码进程失败。
+- 可检测时提示磁盘空间不足。
 
-Failures should be visible to the user and recoverable where practical.
+失败信息应对用户可见，并尽量支持恢复。
 
-## Open Questions
+## 未决问题
 
-- Should trimming prioritize speed with stream copy or frame accuracy with re-encoding?
-- Which export presets should exist first?
-- Should the app generate proxy or thumbnail files for smoother previews?
-- Should clips support multiple annotations or a single primary note in MVP?
+- 裁剪应优先速度，使用 stream copy，还是优先帧精度，进行重新编码？
+- 第一批导出预设应该是什么？
+- 是否需要生成代理文件或缩略图来提升预览流畅度？
+- MVP 中每个片段应支持多个标注，还是一个主要备注？
 
-## Agent Notes
+## Agent 注意事项
 
-- Use a proven media engine or library for core video operations once implementation starts.
-- Keep large sample videos outside git unless a lightweight fixture policy is created.
-- Prefer explicit job states over hidden background work.
+- 一旦开始实现核心视频能力，应使用成熟媒体引擎或库。
+- 除非建立轻量测试素材策略，不要把大样例视频放进 git。
+- 优先使用明确的任务状态，不要隐藏后台工作。
 
-## Update Triggers
+## 更新触发条件
 
-Update this file when:
+出现以下情况时更新本文件：
 
-- A video engine is selected.
-- Import metadata shape is defined.
-- Export presets are chosen.
-- Timeline or annotation behavior changes.
-- Failure modes are implemented or revised.
+- 视频引擎被选定。
+- 导入元数据形状被定义。
+- 导出预设被选定。
+- 时间线或标注行为变化。
+- 失败模式被实现或调整。

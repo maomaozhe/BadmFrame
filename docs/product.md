@@ -1,64 +1,64 @@
-# Product Context
+# 产品上下文
 
-BadmFrame is a badminton-focused video editing application. It should help players, coaches, and badminton content creators turn match or training footage into useful clips without fighting a general-purpose editing workflow.
+BadmFrame 是一个面向羽毛球场景的视频剪辑应用。它应该帮助球员、教练和羽毛球内容创作者，把比赛或训练视频整理成有用的片段，而不是被通用剪辑软件的复杂流程拖住。
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- Primary subject: badminton videos.
-- Primary value: quickly find, trim, annotate, and export badminton moments.
-- Current phase: product and architecture discovery before app implementation.
-- Language preference for documentation: Chinese-first project notes with English commands and identifiers.
+- 主要对象：羽毛球视频。
+- 主要价值：快速找到、裁剪、标注并导出羽毛球片段。
+- 当前阶段：先进行产品和架构探索，再进入应用实现。
+- 文档语言：中文为主，命令和代码标识符保留英文。
 
-## Target Users
+## 目标用户
 
-- Badminton players reviewing their own training or matches.
-- Coaches preparing feedback clips for students.
-- Small clubs or creators producing short tactical highlights.
+- 复盘自己训练或比赛的羽毛球球员。
+- 为学员准备反馈片段的教练。
+- 制作战术集锦或教学内容的小型俱乐部和创作者。
 
-## Core Scenarios
+## 核心场景
 
-- Import a training or match video.
-- Scrub through footage and mark useful moments.
-- Trim a clip around a rally, mistake, drill, or highlight.
-- Add simple context such as player, shot type, score, note, or coaching label.
-- Export a clip suitable for sharing or later review.
+- 导入训练或比赛视频。
+- 浏览视频并标记有价值的瞬间。
+- 围绕一拍、多拍回合、失误、训练动作或高光片段进行裁剪。
+- 添加球员、拍型、比分、备注或教练点评等简单上下文。
+- 导出适合分享或后续复盘的视频片段。
 
-## MVP Scope
+## MVP 范围
 
-- Local video import.
-- Timeline preview and basic scrubbing.
-- Manual clip selection with start and end times.
-- Simple labels or notes attached to clips.
-- Export of selected clips to common video formats.
-- Project-level metadata so work can be reopened.
+- 本地视频导入。
+- 时间线预览和基础拖动浏览。
+- 手动选择片段起止时间。
+- 给片段添加简单标签或备注。
+- 导出选中的片段为常见视频格式。
+- 保存项目级元数据，使工作可以重新打开和继续编辑。
 
-## Non-Goals For MVP
+## MVP 非目标
 
-- Full professional non-linear editing.
-- Social publishing platform.
-- Cloud collaboration.
-- Automatic shuttle tracking.
-- Automatic rally detection.
-- Advanced color grading, multi-cam sync, or audio mixing.
+- 完整专业级非线性剪辑。
+- 社交发布平台。
+- 云端协作。
+- 自动羽毛球轨迹追踪。
+- 自动回合识别。
+- 高级调色、多机位同步或音频混音。
 
-## Open Questions
+## 未决问题
 
-- Should the first version optimize for coaches, individual players, or content creators?
-- Should clips be organized by match, drill, player, shot type, or a flexible tagging system?
-- Should the app support mobile footage quirks such as rotated videos and variable frame rate in MVP?
-- What export presets are most important: WeChat, YouTube Shorts, Instagram, local archive, or coaching review?
+- 第一版应该优先服务教练、个人球员，还是内容创作者？
+- 片段应该按比赛、训练项目、球员、拍型组织，还是使用灵活标签？
+- MVP 是否需要处理手机视频常见问题，比如旋转方向和可变帧率？
+- 最重要的导出预设是什么：微信、YouTube Shorts、Instagram、本地归档，还是教学复盘？
 
-## Agent Notes
+## Agent 注意事项
 
-- Keep product choices grounded in badminton workflows.
-- Before adding complex editor features, check whether they help review or explain badminton footage.
-- Treat automation features as future scope unless explicitly requested.
+- 产品选择要回到羽毛球工作流，而不是通用视频编辑习惯。
+- 添加复杂剪辑能力前，先判断它是否真的帮助羽毛球复盘或讲解。
+- 自动化分析能力默认属于未来范围，除非用户明确要求。
 
-## Update Triggers
+## 更新触发条件
 
-Update this file when:
+出现以下情况时更新本文件：
 
-- MVP scope changes.
-- A target audience is chosen.
-- A feature is promoted from future scope into current scope.
-- User research, examples, or reference workflows are added.
+- MVP 范围变化。
+- 目标用户被明确选择。
+- 某个未来功能被提升到当前范围。
+- 新增用户研究、参考案例或工作流样例。

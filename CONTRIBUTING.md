@@ -1,20 +1,20 @@
-# Contributing
+# 贡献指南
 
-BadmFrame is still in the project-shaping phase. Contributions should keep the repository easy for humans and coding agents to understand.
+BadmFrame 仍处在项目塑形阶段。贡献内容应让仓库对人类贡献者和编码 agent 都保持清晰、容易接手。
 
-## Before Contributing
+## 贡献前
 
-- Read [AGENTS.md](AGENTS.md).
-- Check the relevant files under `docs/`.
-- Add a decision record under `docs/decisions/` before introducing major stack, storage, video-processing, or workflow decisions.
+- 阅读 [AGENTS.md](AGENTS.md)。
+- 查看 `docs/` 下与任务相关的上下文文档。
+- 在引入重大技术栈、存储、视频处理或工作流决策前，先在 `docs/decisions/` 下添加决策记录。
 
-## Guidelines
+## 基本原则
 
-- Keep changes focused and easy to review.
-- Update documentation when behavior, architecture, commands, or workflow changes.
-- Do not commit large raw video files or generated exports.
-- Prefer badminton-specific workflows over generic video editor assumptions.
+- 保持变更聚焦，便于 review。
+- 当行为、架构、命令或工作流变化时，同步更新文档。
+- 不要提交大体积原始视频或导出视频。
+- 优先考虑羽毛球场景的真实工作流，而不是通用视频剪辑器假设。
 
-## Testing
+## 测试
 
-There is no application test suite yet. When runnable code is added, include the relevant test command in `README.md` and `AGENTS.md`.
+当前还没有应用测试套件。添加可运行代码后，需要把相关测试命令补充到 `README.md` 和 `AGENTS.md`。

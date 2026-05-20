@@ -1,51 +1,51 @@
-# ADR 0001: Build Agent-Friendly Context Docs First
+# ADR 0001：先建设 Agent 友好的上下文文档
 
-## Status
+## 状态
 
-Accepted
+已接受
 
-## Context
+## 背景
 
-BadmFrame starts as an empty project directory for a badminton video editing application. Before choosing a framework or writing application code, the project needs a durable context layer that helps future coding agents understand the product direction, technical unknowns, and safe working habits.
+BadmFrame 从一个空项目目录开始，目标是构建羽毛球视频剪辑应用。在选择框架或编写应用代码之前，项目需要一个持久的上下文层，帮助后续编码 agent 理解产品方向、技术未知项和安全工作方式。
 
-Without this context, early agents may prematurely choose a stack, overbuild generic video-editor features, or lose important assumptions between sessions.
+如果没有这层上下文，早期 agent 可能会过早选择技术栈、过度建设通用视频剪辑能力，或在不同会话之间丢失重要假设。
 
-## Decision
+## 决策
 
-Create an initial documentation scaffold before application implementation:
+在应用实现前，先创建初始文档脚手架：
 
-- `AGENTS.md` as the agent entry point.
-- `docs/product.md` for product and MVP context.
-- `docs/architecture.md` for architecture placeholders and future decisions.
-- `docs/video-pipeline.md` for media workflow context.
-- `docs/agent-workflow.md` for agent operating rules.
-- `docs/decisions/` for ADRs.
-- `tasks/` and `assets/reference/` as reserved directories for future planning and references.
+- `AGENTS.md` 作为 agent 入口。
+- `docs/product.md` 记录产品和 MVP 上下文。
+- `docs/architecture.md` 记录架构占位和未来决策。
+- `docs/video-pipeline.md` 记录媒体工作流上下文。
+- `docs/agent-workflow.md` 记录 agent 操作规则。
+- `docs/decisions/` 存放 ADR。
+- `tasks/` 和 `assets/reference/` 作为未来任务规划与参考资料的预留目录。
 
-## Consequences
+## 影响
 
-- Future agents have a clear starting point.
-- Product and technical assumptions are visible instead of hidden in chat history.
-- Stack and pipeline choices remain intentionally undecided until a dedicated task resolves them.
-- Documentation must be maintained as the repository becomes real code.
+- 后续 agent 有明确起点。
+- 产品和技术假设可见，而不是只存在于聊天记录里。
+- 技术栈和视频流程选择会保持有意未决，直到专门任务解决。
+- 随着仓库进入真实代码阶段，文档必须持续维护。
 
-## Current Confirmed Content
+## 当前已确定内容
 
-- Documentation is the first project artifact.
-- `AGENTS.md` is the top-level context entry point.
-- Major technical choices should be recorded in ADRs.
+- 文档是项目的第一个正式产物。
+- `AGENTS.md` 是顶层上下文入口。
+- 重大技术选择应记录在 ADR 中。
 
-## Open Questions
+## 未决问题
 
-- What technology stack will be selected?
-- What exact MVP workflow will be implemented first?
-- What sample media policy should the project use?
+- 将选择什么技术栈？
+- 第一版 MVP 工作流的精确形态是什么？
+- 项目应采用什么样的样例媒体策略？
 
-## Agent Notes
+## Agent 注意事项
 
-- Do not treat this ADR as a technology decision.
-- Add new ADRs for future stack, video engine, storage, and export decisions.
+- 不要把本 ADR 当作技术栈决策。
+- 后续应为技术栈、视频引擎、存储和导出等决策新增 ADR。
 
-## Update Triggers
+## 更新触发条件
 
-This ADR should usually remain stable. Add a new ADR instead of editing this one when the documentation strategy changes materially.
+本 ADR 通常应保持稳定。如果文档策略发生实质变化，优先新增 ADR，而不是直接改写本记录。
