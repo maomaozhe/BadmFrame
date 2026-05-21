@@ -1,0 +1,30 @@
+[project]
+name = "badmframe-server"
+version = "0.1.0"
+description = "BadmFrame Web backend - FastAPI + MySQL + Redis + Celery + FFmpeg"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncmy>=0.2.9",
+    "alembic>=1.14.0",
+    "redis>=5.2.0",
+    "celery[redis]>=5.4.0",
+    "python-multipart>=0.0.12",
+    "pydantic-settings>=2.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "aiosqlite>=0.20.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Storage (generated at runtime)
+storage/uploads/
+storage/thumbnails/
+storage/exports/
+
+# Environment
+.env
