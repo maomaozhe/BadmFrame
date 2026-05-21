@@ -1,23 +1,27 @@
 # BadmFrame Agent 指南
 
-BadmFrame 是一个面向羽毛球场景的视频剪辑应用。项目当前处在上下文建设阶段：还没有选择应用技术栈，也还没有应用代码。
+BadmFrame 是一个面向羽毛球场景的视频剪辑应用。技术架构已定（ADR-0002），即将进入 MVP 实现阶段。
 
 这是编码 agent 的入口文档。接任务前先读本文件，再按下方链接阅读相关上下文。
 
 ## 当前状态
 
-- 仓库状态：只有文档脚手架。
+- 仓库状态：iOS 与 Web 前端 MVP 已实现，Web 后端待开发。
 - 产品方向：面向羽毛球视频的剪辑和标注工具。
-- MVP 方向：帮助用户导入羽毛球视频，找到有价值的片段，裁剪、添加简单标签或注释，并导出可分享的视频片段。
-- 技术栈：未决定。
+- MVP 方向：帮助业余爱好者导入自己录制的羽毛球视频，快速浏览并打时间点标记定位关键瞬间，裁剪片段，本地归档保存。
+- 技术栈：已确定，见 [ADR-0002](docs/decisions/0002-technical-architecture.md)。
+  - **iOS**：SwiftUI + AVFoundation + SwiftData（纯本地，零依赖）— 已实现 29 个源文件，待 Xcode 编译验证
+  - **Web 前端**：React 19 + Tailwind v4 + shadcn/ui + Zustand — 已实现 28 个源文件，TypeScript 零错误，Vite 构建通过
+  - **Web 后端**：FastAPI + MySQL + Redis + Celery + FFmpeg — 待开发
 
 ## 推荐阅读顺序
 
 1. [产品上下文](docs/product.md)
 2. [架构说明](docs/architecture.md)
-3. [视频处理流程](docs/video-pipeline.md)
-4. [Agent 工作流](docs/agent-workflow.md)
-5. [决策记录](docs/decisions/0001-project-context-docs.md)
+3. [ADR-0002 技术架构决策](docs/decisions/0002-technical-architecture.md)
+4. [视频处理流程](docs/video-pipeline.md)
+5. [Agent 工作流](docs/agent-workflow.md)
+6. [ADR-0001 上下文文档决策](docs/decisions/0001-project-context-docs.md)
 
 ## 开发约定
 
@@ -37,20 +41,28 @@ BadmFrame 是一个面向羽毛球场景的视频剪辑应用。项目当前处�
 
 ## 常用命令
 
-这些命令还是占位内容，等真实技术栈确定后再补齐。
+命令随代码实现逐步补充。各端独立开发和构建。
 
 ```bash
-# install dependencies
-TODO
+# === iOS ===
+# Xcode 打开 BadmFrame.xcodeproj 即可构建运行
+# TODO: xcodebuild 命令行构建脚本
 
-# run local development server
-TODO
+# === Web 前端（web/） ===
+cd web
+npm install
+npm run dev        # Vite 开发服务器
 
-# run tests
-TODO
+# TODO: npm test
+# TODO: npm run build
 
-# build production artifact
-TODO
+# === Web 后端（server/） ===
+cd server
+pip install -e ".[dev]"
+uvicorn app.main:app --reload   # FastAPI 开发服务器
+
+# TODO: pytest
+# TODO: alembic upgrade head
 ```
 
 ## 当前已确定内容
@@ -58,13 +70,14 @@ TODO
 - 项目从 agent 友好的文档结构开始。
 - 文档以中文为主，命令和代码标识符保留英文。
 - 第一阶段仍应先验证产品和技术选择，再进入核心应用代码开发。
+- MVP 核心用户为业余爱好者，优先做时间点标记，主要场景为本地归档。
 
 ## 未决问题
 
-- 应用形态应该是桌面应用、Web 应用，还是本地优先的混合形态？
-- 视频引擎应该直接使用 FFmpeg、使用封装库，还是选择其他媒体框架？
-- 标注能力第一优先级是什么：文字标签、球场覆盖层、球路轨迹、球员标签，还是教练点评？
-- 项目文件和导出视频应该存储在哪里？
+- 多角度视频关联是否需要在 MVP 阶段支持？
+- Web 端是否需要 Docker Compose 一键部署脚本？
+- CI/CD 方案：iOS 端用 Xcode Cloud？Web 端用什么部署？
+- Web 端是否需要用户系统，还是单机使用？
 
 ## Agent 注意事项
 

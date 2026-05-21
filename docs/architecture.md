@@ -1,85 +1,179 @@
 # 架构说明
 
-本文记录 BadmFrame 的目标架构方向。已经做出的决策应在这里真实描述；尚未决定的部分必须明确标记为占位，不要伪装成已实现能力。
+BadmFrame 的架构由 [ADR-0002](decisions/0002-technical-architecture.md) 决定，本文档是架构的持续记录。
 
-## 当前已确定内容
+## 平台与总体架构
 
-- 尚未选择前端框架。
-- 尚未选择后端或运行时模型。
-- 尚未选择视频处理引擎。
-- 应用应优先围绕本地视频工作流设计。
+BadmFrame 由三个独立部分组成：
 
-## 目标架构形态
+```
+┌─────────────────────────────┐     ┌──────────────────────────────────────┐
+│         iOS App              │     │              Web 端                   │
+│  SwiftUI + AVFoundation      │     │                                      │
+│  SwiftData（本地持久化）      │     │  ┌──────────┐     ┌──────────────┐  │
+│  视频处理：硬件加速、纯本地    │     │  │ React 19 │ ←─→ │ FastAPI      │  │
+│  零服务端依赖                 │     │  │ Tailwind │     │ MySQL+Redis  │  │
+└─────────────────────────────┘     │  │ shadcn/ui│     │ FFmpeg       │  │
+                                    │  └──────────┘     └──────────────┘  │
+                                    └──────────────────────────────────────┘
+```
 
-BadmFrame 未来大概率需要这些子系统：
+- **iOS 端**：纯本地应用，AVFoundation 硬件加速处理视频，SwiftData 本地存储
+- **Web 端**：前后端分离，前端 React 在浏览器中播放/标记，后端 FastAPI 负责视频处理和持久化
+- **两端独立运行**，数据不同步，用户在哪端操作就在哪端完成全流程
 
-- 用户界面：项目浏览、视频预览、时间线、片段列表、标注控件、导出状态。
-- 项目模型：源媒体引用、片段范围、标注、导出设置和项目元数据。
-- 视频流程：导入校验、必要时生成预览、裁剪、编码和导出。
-- 存储：本地项目文件、源媒体引用和导出文件。
-- 任务执行：长时间视频任务需要进度、取消、重试和失败信息。
+## iOS 端（SwiftUI + AVFoundation + SwiftData）
 
-## 前端占位
+| 操作 | 方案 | 框架 |
+|------|------|------|
+| 视频导入 | PHPicker 选择 → 拷贝到 App 沙盒 | PhotosUI |
+| 元数据提取 | 异步加载 duration/resolution/codec/VFR | AVAsset |
+| 播放 | 硬件解码 H.264/HEVC | AVPlayer |
+| 缩略图 | 间隔抽帧 → sprite sheet 缓存 | AVAssetImageGenerator |
+| 片段导出 | 硬件加速，默认 stream copy | AVAssetExportSession |
+| 数据存储 | ORM，自动迁移 | SwiftData（iOS 17+） |
 
-前端未来应提供：
+**架构模式**：MVVM，ViewModel 用 `@Observable` 宏
 
-- 快速的时间线导航。
-- 清晰的片段边界编辑。
-- 不遮挡视频内容的标注控件。
-- 导出进度和失败恢复入口。
+**目录结构**：
+```
+BadmFrame/
+├── BadmFrame.xcodeproj
+├── BadmFrame/
+│   ├── App/                         # 入口
+│   ├── Models/                      # @Model 类（Project, Marker, Clip...）
+│   ├── ViewModels/                  # @Observable ViewModel
+│   ├── Views/                       # SwiftUI 视图
+│   │   ├── Projects/                # 项目列表 + 导入
+│   │   ├── Editor/                  # 编辑主界面 + 播放器
+│   │   ├── Timeline/                # 时间线（canvas 渲染）
+│   │   ├── Markers/                 # 标记面板
+│   │   ├── Clips/                   # 片段面板
+│   │   ├── Export/                  # 导出
+│   │   └── Common/                  # 通用组件
+│   ├── Services/                    # 导入、缩略图、导出、存储
+│   └── Extensions/                  # 工具扩展
+└── docs/
+```
 
-技术决策仍未确定。不要在没有 ADR 的情况下选择框架。
+**零第三方依赖**，全部使用 Apple 系统框架。
 
-## 后端与运行时占位
+## Web 前端（React 19 + Tailwind v4 + shadcn/ui + Zustand）
 
-运行时未来应提供：
+| 层级 | 选型 |
+|------|------|
+| 框架 | React 19 + TypeScript |
+| 样式 | Tailwind CSS v4（`@theme` 定义 token） |
+| 组件库 | shadcn/ui（Radix 无样式原语） |
+| 状态管理 | Zustand（project/video/marker/clip/ui 五个 slice） |
+| 构建 | Vite |
+| 图标 | lucide-react |
+| 视频播放 | HTML5 `<video>` 元素直读源文件 |
+| 缩略图 | `<video>` + `<canvas>` 提取帧 |
+| 本地缓存 | IndexedDB（项目元数据前端缓存） |
 
-- 本地文件访问能力。
-- 持久化项目存储。
-- 后台视频处理任务。
-- UI 状态与媒体处理状态之间清晰的边界。
+**目录结构**：
+```
+web/
+├── src/
+│   ├── index.css                    # Tailwind 入口
+│   ├── types.ts                     # 与后端对齐的数据模型
+│   ├── components/
+│   │   ├── ui/                      # shadcn/ui 组件
+│   │   ├── ProjectList/
+│   │   ├── Editor/                  # VideoPlayer + Controls
+│   │   ├── Timeline/                # 时间线 + 缩略图条 + 标记层 + 裁剪层
+│   │   ├── Markers/
+│   │   ├── Clips/
+│   │   └── Export/
+│   ├── store/                       # Zustand slices
+│   ├── hooks/                       # 视频播放、键盘快捷键、时间线、导出
+│   ├── services/                    # HTTP 客户端、WebSocket 客户端
+│   └── utils/
+└── tests/
+```
 
-技术决策仍未确定。可选方向包括 Web 应用、桌面应用或本地优先的混合形态。
+## Web 后端（FastAPI + MySQL + Redis + FFmpeg）
 
-## 视频处理占位
+| 组件 | 选型 | 用途 |
+|------|------|------|
+| Web 框架 | FastAPI | 异步、WebSocket、自动 OpenAPI |
+| ORM | SQLAlchemy 2.0 (async) | MySQL 异步操作 |
+| 数据库 | MySQL 8.0 | 项目、标记、片段、导出任务 |
+| 缓存/队列 | Redis | 导出队列、进度缓存、上传状态 |
+| 任务队列 | Celery（Redis broker） | 导出任务异步执行 |
+| 视频处理 | FFmpeg（subprocess） | 元数据、缩略图、导出 |
+| 文件存储 | 本地磁盘 + 定时清理 | 上传/缩略图/导出 |
+| 迁移 | Alembic | 数据库 schema 版本管理 |
 
-视频引擎未来应支持：
+**API 路由**：
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/videos/upload` | 上传视频 |
+| GET | `/api/v1/videos/{id}` | 视频元数据 |
+| POST | `/api/v1/projects` | 创建项目 |
+| GET | `/api/v1/projects` | 项目列表 |
+| GET | `/api/v1/projects/{id}` | 项目详情（含 markers, clips） |
+| PUT | `/api/v1/projects/{id}` | 更新项目 |
+| DELETE | `/api/v1/projects/{id}` | 删除项目 |
+| POST | `/api/v1/projects/{pid}/markers` | 创建标记 |
+| PUT | `/api/v1/projects/{pid}/markers/{id}` | 更新标记 |
+| DELETE | `/api/v1/projects/{pid}/markers/{id}` | 删除标记 |
+| POST | `/api/v1/projects/{pid}/clips` | 创建片段 |
+| PUT | `/api/v1/projects/{pid}/clips/{id}` | 更新片段 |
+| DELETE | `/api/v1/projects/{pid}/clips/{id}` | 删除片段 |
+| POST | `/api/v1/exports` | 提交导出任务 |
+| GET | `/api/v1/exports/{task_id}` | 查询状态 |
+| WS | `/ws/exports/{task_id}` | 实时进度推送 |
+| GET | `/api/v1/exports/{task_id}/download` | 下载结果 |
+| DELETE | `/api/v1/exports/{task_id}` | 取消任务 |
 
-- 读取常见手机和相机视频格式。
-- 精确或接近精确的裁剪。
-- 导出常见的可分享格式。
-- 当编解码器或文件不受支持时，给出清晰错误信息。
+**目录结构**：
+```
+server/
+├── pyproject.toml
+├── alembic.ini
+├── app/
+│   ├── main.py                     # 入口
+│   ├── config.py                   # 配置
+│   ├── database.py                 # DB 连接
+│   ├── models/                     # SQLAlchemy ORM
+│   ├── schemas/                    # Pydantic
+│   ├── api/                        # 路由
+│   ├── services/                   # 业务逻辑（视频、导出、缩略图、存储）
+│   ├── tasks/                      # Celery 异步任务
+│   └── utils/                      # FFmpeg 封装、Redis 客户端
+├── storage/                        # 文件存储（gitignore）
+└── tests/
+```
 
-FFmpeg 是可能候选，但这还不是正式决策。
+## 数据模型（两端对齐）
 
-## 存储占位
+| 实体 | iOS 存储 | Web 存储 |
+|------|----------|----------|
+| Project | SwiftData | MySQL |
+| Marker | SwiftData | MySQL |
+| Clip | SwiftData | MySQL |
+| SourceVideo | 沙盒文件路径 | 服务器文件路径 + MySQL 记录 |
+| 导出任务 | 本地 runloop | Celery + Redis + MySQL |
 
-存储模型未来应区分：
+核心字段：`Project { id, name, sourceVideo, markers[], clips[] }`、`Marker { id, timestampSec, label, color }`、`Clip { id, startTimeSec, endTimeSec, label, notes, anchorMarkerId, exportStatus }`。
 
-- 源视频：体积通常很大，除非必要不应复制。
-- 项目元数据：应小而持久。
-- 预览或缓存文件：应可重新生成。
-- 导出片段：用户真正关心的输出产物。
+详细定义见各端 `types.ts` / `Models/`。
+
+## 视频处理策略（两端对比）
+
+| 操作 | iOS | Web |
+|------|-----|-----|
+| 播放 | AVPlayer 硬件解码 | HTML5 `<video>` 浏览器解码 |
+| 缩略图 | AVAssetImageGenerator | `<video>` + `<canvas>` |
+| 导出 | AVAssetExportSession 硬件加速 | 上传 → FFmpeg 服务端处理 → 下载 |
+| 裁剪精度 | 关键帧间隔（~1-2s） | 关键帧间隔（~1-2s） |
+| 转码 | 不转码，直接读原文件 | 不转码，原文件上传到服务器 |
 
 ## 未决问题
 
-- 产品是否应该做成桌面应用，以获得可靠的本地文件访问？
-- 视频处理应该在主进程、工作进程，还是独立服务中执行？
-- 项目文件格式应该是什么？
-- 重新打开项目时，如果源媒体缺失，应该如何处理？
-
-## Agent 注意事项
-
-- 不要把占位架构描述成已实现行为。
-- 添加代码时，应把媒体处理放在明确边界后面，避免 UI 代码到处直接调用 shell。
-- 重大技术栈、存储和视频流程决策应记录到 `docs/decisions/`。
-
-## 更新触发条件
-
-出现以下情况时更新本文件：
-
-- 技术栈被选定。
-- 仓库结构变化。
-- 项目文件格式被选定。
-- 视频处理策略变化。
-- 后台任务行为被实现。
+- 多角度视频关联是否需要在 MVP 阶段支持？
+- Web 端是否需要 Docker Compose 一键部署脚本？
+- CI/CD：iOS 端用 Xcode Cloud / GitHub Actions？Web 端用什么部署？
+- 服务端 FFmpeg 的并发导出策略（同时最多几个任务）？
