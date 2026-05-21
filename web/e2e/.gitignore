@@ -1,0 +1,7 @@
+screenshots/*
+!screenshots/.gitkeep
+reports/*
+!reports/.gitkeep
+test-results/
+playwright-report/
+node_modules/

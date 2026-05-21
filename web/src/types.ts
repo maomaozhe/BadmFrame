@@ -1,0 +1,59 @@
+export interface Project {
+  id: string;
+  name: string;
+  sourceVideo: SourceVideo | null;
+  markers: Marker[];
+  clips: Clip[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SourceVideo {
+  id: string;
+  fileName: string;
+  filePath: string;
+  durationSec: number;
+  width: number;
+  height: number;
+  frameRate: number;
+  codec: string;
+  isVFR: boolean;
+  fileSize: number;
+  importDate: string;
+  objectURL?: string;
+}
+
+export interface Marker {
+  id: string;
+  timestampSec: number;
+  label: string;
+  color: MarkerColor;
+  createdAt: string;
+}
+
+export type MarkerColor = "yellow" | "red" | "blue" | "green" | "orange" | "purple";
+
+export const MARKER_COLORS: { key: MarkerColor; label: string; hex: string }[] = [
+  { key: "yellow", label: "黄色", hex: "#eab308" },
+  { key: "red", label: "红色", hex: "#ef4444" },
+  { key: "blue", label: "蓝色", hex: "#3b82f6" },
+  { key: "green", label: "绿色", hex: "#22c55e" },
+  { key: "orange", label: "橙色", hex: "#f97316" },
+  { key: "purple", label: "紫色", hex: "#a855f7" },
+];
+
+export interface Clip {
+  id: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  label: string;
+  notes: string;
+  anchorMarkerId?: string;
+  exportStatus: ClipExportStatus;
+  exportedFilePath?: string;
+  createdAt: string;
+}
+
+export type ClipExportStatus = "none" | "exporting" | "completed" | "failed";
+
+export type EditorTab = "markers" | "clips" | "info";
