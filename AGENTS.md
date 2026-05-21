@@ -6,13 +6,13 @@ BadmFrame 是一个面向羽毛球场景的视频剪辑应用。技术架构已�
 
 ## 当前状态
 
-- 仓库状态：iOS 与 Web 前端 MVP 已实现，Web 后端待开发。
+- 仓库状态：iOS、Web 前端、Web 后端 MVP 均已实现。
 - 产品方向：面向羽毛球视频的剪辑和标注工具。
 - MVP 方向：帮助业余爱好者导入自己录制的羽毛球视频，快速浏览并打时间点标记定位关键瞬间，裁剪片段，本地归档保存。
 - 技术栈：已确定，见 [ADR-0002](docs/decisions/0002-technical-architecture.md)。
   - **iOS**：SwiftUI + AVFoundation + SwiftData（纯本地，零依赖）— 已实现 29 个源文件，待 Xcode 编译验证
   - **Web 前端**：React 19 + Tailwind v4 + shadcn/ui + Zustand — 已实现 28 个源文件，TypeScript 零错误，Vite 构建通过
-  - **Web 后端**：FastAPI + MySQL + Redis + Celery + FFmpeg — 待开发
+  - **Web 后端**：FastAPI + MySQL + Redis + Celery + FFmpeg — 已实现 30+ 源文件，16 tests 通过，Alembic 迁移就绪
 
 ## 推荐阅读顺序
 
@@ -61,8 +61,8 @@ cd server
 pip install -e ".[dev]"
 uvicorn app.main:app --reload   # FastAPI 开发服务器
 
-# TODO: pytest
-# TODO: alembic upgrade head
+pytest
+alembic upgrade head
 ```
 
 ## 当前已确定内容
