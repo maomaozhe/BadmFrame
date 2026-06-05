@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.clip import Clip
 from app.models.project import Project
-from app.services.export_service import export_clip, cancel_export
+from app.services.export_service import export_clip, cancel_export, export_clip_sequence
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ _active_exports: dict[str, asyncio.Queue] = {}
 class ExportRequest(BaseModel):
     project_id: str
     clip_ids: list[str]
+    merge: bool = False
 
 
 class ExportTaskRead(BaseModel):
@@ -44,7 +46,7 @@ async def submit_export(body: ExportRequest, db: AsyncSession = Depends(get_db))
     queue: asyncio.Queue = asyncio.Queue()
     _active_exports[task_id] = queue
 
-    asyncio.create_task(_run_export(task_id, project.id, body.clip_ids, db, queue))
+    asyncio.create_task(_run_export(task_id, project.id, body.clip_ids, body.merge, db, queue))
     return ExportTaskRead(task_id=task_id, status="accepted")
 
 
@@ -96,12 +98,43 @@ async def export_progress(websocket: WebSocket, task_id: str):
             del _active_exports[task_id]
 
 
-async def _run_export(task_id: str, project_id: str, clip_ids: list[str], db: AsyncSession, queue: asyncio.Queue):
+async def _run_export(
+    task_id: str,
+    project_id: str,
+    clip_ids: list[str],
+    merge: bool,
+    db: AsyncSession,
+    queue: asyncio.Queue,
+):
     results = []
     try:
+        if merge:
+            clips: list[Clip] = []
+            for clip_id in clip_ids:
+                result = await db.execute(
+                    select(Clip)
+                    .options(selectinload(Clip.project).selectinload(Project.source_video))
+                    .where(Clip.id == clip_id, Clip.project_id == project_id)
+                )
+                clip = result.scalar_one_or_none()
+                if clip:
+                    clips.append(clip)
+            if not clips:
+                await queue.put({"status": "error", "error": "No clips found"})
+                return
+            await queue.put({"clip_index": 0, "total": len(clips), "status": "exporting_merged"})
+            out_path = await export_clip_sequence(clips, project_id)
+            await queue.put({
+                "status": "all_done",
+                "results": [{"id": "merged", "status": "completed", "path": str(out_path)}],
+            })
+            return
+
         for i, clip_id in enumerate(clip_ids):
             result = await db.execute(
-                select(Clip).where(Clip.id == clip_id, Clip.project_id == project_id)
+                select(Clip)
+                .options(selectinload(Clip.project).selectinload(Project.source_video))
+                .where(Clip.id == clip_id, Clip.project_id == project_id)
             )
             clip = result.scalar_one_or_none()
             if not clip:

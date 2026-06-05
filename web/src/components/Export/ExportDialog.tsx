@@ -48,6 +48,26 @@ export function ExportDialog() {
     setExporting(false);
   };
 
+  const handleExportMerged = async () => {
+    if (!project.sourceVideo?.objectURL) return;
+    setExporting(true);
+    const toExport = clips
+      .filter((c) => selected.has(c.id))
+      .sort((a, b) => a.startTimeSec - b.startTimeSec);
+
+    try {
+      toExport.forEach((clip) => updateExportStatus(clip.id, "exporting"));
+      await exportClipSequence(project.sourceVideo.objectURL, toExport, `${project.name}_自动剪辑`);
+      toExport.forEach((clip) => updateExportStatus(clip.id, "completed"));
+      setResults([{ clipId: "merged", label: "合辑", success: true }]);
+    } catch {
+      toExport.forEach((clip) => updateExportStatus(clip.id, "failed"));
+      setResults([{ clipId: "merged", label: "合辑", success: false }]);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleClose = () => {
     setShowExport(false);
     setSelected(new Set());
@@ -105,6 +125,9 @@ export function ExportDialog() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>取消</Button>
+            <Button variant="outline" onClick={handleExportMerged} disabled={exporting || selected.size === 0}>
+              {exporting ? "导出中..." : "导出合辑"}
+            </Button>
             <Button onClick={handleExport} disabled={exporting || selected.size === 0}>
               {exporting ? "导出中..." : `导出 (${selected.size})`}
             </Button>
@@ -116,10 +139,19 @@ export function ExportDialog() {
 }
 
 function exportClip(videoURL: string, start: number, end: number, label: string): Promise<void> {
+  return exportClipSequence(videoURL, [{ startTimeSec: start, endTimeSec: end, label }], label || "clip");
+}
+
+function exportClipSequence(
+  videoURL: string,
+  clips: Array<{ startTimeSec: number; endTimeSec: number; label: string }>,
+  label: string
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     video.src = videoURL;
     video.preload = "auto";
+    video.muted = true;
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
 
@@ -134,7 +166,7 @@ function exportClip(videoURL: string, start: number, end: number, label: string)
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${label || "clip"}_${Math.floor(start)}s-${Math.floor(end)}s.webm`;
+      a.download = `${label || "clip"}.webm`;
       a.click();
       URL.revokeObjectURL(url);
       resolve();
@@ -144,22 +176,65 @@ function exportClip(videoURL: string, start: number, end: number, label: string)
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      video.currentTime = start;
-      video.onseeked = () => {
-        const drawFrame = () => {
-          if (video.currentTime >= end || video.ended) {
-            recorder.stop();
-            video.pause();
-            return;
-          }
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          requestAnimationFrame(drawFrame);
-        };
-        video.play();
-        recorder.start();
-        drawFrame();
-      };
+      recorder.start();
+      playRanges(video, ctx, canvas, clips)
+        .then(() => recorder.stop())
+        .catch(reject);
     };
     video.onerror = () => reject(new Error("视频加载失败"));
+  });
+}
+
+async function playRanges(
+  video: HTMLVideoElement,
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  clips: Array<{ startTimeSec: number; endTimeSec: number }>
+) {
+  for (const clip of clips) {
+    if (clip.endTimeSec <= clip.startTimeSec) continue;
+    await seekVideo(video, clip.startTimeSec);
+    await video.play();
+    await drawUntil(video, ctx, canvas, clip.endTimeSec);
+    video.pause();
+  }
+}
+
+function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const onSeeked = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("视频定位失败"));
+    };
+    const cleanup = () => {
+      video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("error", onError);
+    };
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+    video.currentTime = time;
+  });
+}
+
+function drawUntil(
+  video: HTMLVideoElement,
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  endTimeSec: number
+): Promise<void> {
+  return new Promise((resolve) => {
+    const drawFrame = () => {
+      if (video.currentTime >= endTimeSec || video.ended) {
+        resolve();
+        return;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      requestAnimationFrame(drawFrame);
+    };
+    drawFrame();
   });
 }

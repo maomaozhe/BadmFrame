@@ -16,7 +16,12 @@ export function VideoPlayer() {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !objectURL) return;
+    if (!video) return;
+
+    if (!objectURL) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     video.src = objectURL;
@@ -25,22 +30,26 @@ export function VideoPlayer() {
       setDuration(video.duration);
       setIsLoading(false);
     };
+    const onError = () => setIsLoading(false);
     const onTime = () => setCurrentTime(video.currentTime);
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
 
     video.addEventListener("loadedmetadata", onLoaded);
+    video.addEventListener("error", onError);
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
-    video.addEventListener("ended", () => setIsPlaying(false));
+    video.addEventListener("ended", onEnded);
 
     return () => {
       video.removeEventListener("loadedmetadata", onLoaded);
+      video.removeEventListener("error", onError);
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
-      video.removeEventListener("ended", () => setIsPlaying(false));
+      video.removeEventListener("ended", onEnded);
     };
   }, [objectURL]);
 
@@ -61,7 +70,7 @@ export function VideoPlayer() {
   };
 
   return (
-    <div className="bg-black relative shrink-0" style={{ aspectRatio: "16 / 9" }}>
+    <div className="bg-black relative shrink-0" style={{ aspectRatio: "16 / 9", maxHeight: "60dvh" }}>
       <video
         ref={videoRef}
         className="w-full h-full object-contain"

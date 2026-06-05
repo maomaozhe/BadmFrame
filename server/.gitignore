@@ -11,6 +11,7 @@ __pycache__/
 storage/uploads/
 storage/thumbnails/
 storage/exports/
+storage/analysis/
 storage/*.db
 
 # Environment

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     storage_dir: Path = Path("storage")
     max_upload_size: int = 2 * 1024 * 1024 * 1024  # 2 GB
+    ffmpeg_path: str = "ffmpeg"
+    ffprobe_path: str = "ffprobe"
 
     @property
     def uploads_dir(self) -> Path:

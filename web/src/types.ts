@@ -56,4 +56,26 @@ export interface Clip {
 
 export type ClipExportStatus = "none" | "exporting" | "completed" | "failed";
 
-export type EditorTab = "markers" | "clips" | "info";
+export type AutoClipMode = "conservative" | "balanced" | "aggressive";
+export type AutoClipSegmentState = "keep" | "cut";
+
+export interface AutoClipSegment {
+  id: string;
+  startSec: number;
+  endSec: number;
+  confidence: number;
+  reason: string[];
+  source: "auto";
+  state: AutoClipSegmentState;
+}
+
+export interface AutoClipDraft {
+  status: "idle" | "running" | "completed" | "failed";
+  mode: AutoClipMode;
+  progress: number;
+  segments: AutoClipSegment[];
+  error?: string;
+  createdAt?: string;
+}
+
+export type EditorTab = "markers" | "clips" | "auto" | "info";

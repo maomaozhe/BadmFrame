@@ -1,15 +1,16 @@
 import { useRef, useState, useEffect } from "react";
 import { useVideoStore } from "@/store/videoSlice";
 import { formatTime, formatTimePrecise } from "@/utils";
-import type { Marker } from "@/types";
+import type { AutoClipSegment, Marker } from "@/types";
 
 interface Props {
   duration: number;
   markers: Marker[];
+  autoSegments?: AutoClipSegment[];
   onAddMarker: () => void;
 }
 
-export function TimelineView({ duration, markers, onAddMarker }: Props) {
+export function TimelineView({ duration, markers, autoSegments = [], onAddMarker }: Props) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(10);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -90,6 +91,23 @@ export function TimelineView({ duration, markers, onAddMarker }: Props) {
 
           {/* Thumbnail strip background */}
           <div className="absolute top-5 left-0 h-9 w-full bg-muted/20" />
+
+          {/* Auto clip draft overlay */}
+          <div className="absolute top-5 left-0 h-9 w-full pointer-events-none">
+            {autoSegments.map((segment) => {
+              const left = segment.startSec * pixelsPerSecond;
+              const width = Math.max(1, (segment.endSec - segment.startSec) * pixelsPerSecond);
+              const color = segment.state === "keep" ? "bg-emerald-500/25" : "bg-zinc-500/20";
+              const border = segment.state === "keep" ? "border-emerald-500/60" : "border-zinc-400/50";
+              return (
+                <div
+                  key={segment.id}
+                  className={`absolute top-1 h-7 border ${color} ${border}`}
+                  style={{ left, width }}
+                />
+              );
+            })}
+          </div>
 
           {/* Marker diamonds */}
           <svg className="absolute top-5 left-0" width={totalWidth + 16} height={44}>

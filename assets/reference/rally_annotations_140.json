@@ -1,0 +1,56 @@
+{
+  "video": "video/140.mp4",
+  "source": "user_manual_annotation",
+  "createdFor": "rally-segmentation-evaluation",
+  "courtRoi": null,
+  "rallies": [
+    {
+      "id": "rally-001",
+      "startSec": 14,
+      "endSec": 21,
+      "note": ""
+    },
+    {
+      "id": "rally-002",
+      "startSec": 27,
+      "endSec": 31,
+      "note": ""
+    },
+    {
+      "id": "rally-003",
+      "startSec": 35,
+      "endSec": 40,
+      "note": ""
+    },
+    {
+      "id": "rally-004",
+      "startSec": 43,
+      "endSec": 51,
+      "note": ""
+    },
+    {
+      "id": "rally-005",
+      "startSec": 53,
+      "endSec": 58,
+      "note": ""
+    },
+    {
+      "id": "rally-006",
+      "startSec": 65,
+      "endSec": 70,
+      "note": ""
+    },
+    {
+      "id": "rally-007",
+      "startSec": 74,
+      "endSec": 82,
+      "note": ""
+    },
+    {
+      "id": "rally-008",
+      "startSec": 87,
+      "endSec": 115,
+      "note": ""
+    }
+  ]
+}

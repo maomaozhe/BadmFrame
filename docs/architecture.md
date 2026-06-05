@@ -90,7 +90,11 @@ web/
 │   ├── hooks/                       # 视频播放、键盘快捷键、时间线、导出
 │   ├── services/                    # HTTP 客户端、WebSocket 客户端
 │   └── utils/
-└── tests/
+├── e2e/                           # Playwright 端到端测试
+│   ├── tests/                     # 核心 Web 工作流测试
+│   ├── helpers/                   # 页面、IndexedDB、截图辅助
+│   └── fixtures/                  # 测试视频（尽量小，避免大媒体进入 git）
+└── playwright.config.ts
 ```
 
 ## Web 后端（FastAPI + MySQL + Redis + FFmpeg）
@@ -105,6 +109,16 @@ web/
 | 视频处理 | FFmpeg（subprocess） | 元数据、缩略图、导出 |
 | 文件存储 | 本地磁盘 + 定时清理 | 上传/缩略图/导出 |
 | 迁移 | Alembic | 数据库 schema 版本管理 |
+
+## 模型推理层（重启后新增方向）
+
+自动剪辑不再依赖主后端内的全局运动量启发式方案。模型推理应作为独立运行层接入：
+
+- 输入：源视频路径、抽帧配置、可选调试 ROI 配置。
+- 输出：`shuttle_points.json`、`court_estimate.json`、`rally_candidates.json`。
+- 运行环境：优先独立于 FastAPI venv，可在 Windows 上使用 Docker、Conda 或远端 GPU。
+- 主后端只消费标准 JSON 结果，并负责保存任务状态、候选回合和用户审查结果。
+- 产品主路径不要求用户手动画 ROI；需要自动估计主场地或主活动区域。
 
 **API 路由**：
 | 方法 | 路径 | 说明 |

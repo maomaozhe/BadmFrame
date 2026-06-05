@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import type { Clip, ClipExportStatus } from "@/types";
+import type { AutoClipSegment, Clip, ClipExportStatus } from "@/types";
 import { useProjectStore } from "./projectSlice";
 import { generateId } from "@/utils";
 
 interface ClipSlice {
   createClip: (startTimeSec: number, endTimeSec: number, label?: string, anchorMarkerId?: string) => void;
   createClipFromMarker: (markerTimestamp: number, duration: number) => void;
+  createClipsFromAutoSegments: (segments: AutoClipSegment[]) => void;
   deleteClip: (clipId: string) => void;
   updateClip: (clipId: string, updates: Partial<Pick<Clip, "startTimeSec" | "endTimeSec" | "label" | "notes">>) => void;
   updateExportStatus: (clipId: string, status: ClipExportStatus, filePath?: string) => void;
@@ -51,6 +52,30 @@ export const useClipStore = create<ClipSlice>(() => ({
       createdAt: new Date().toISOString(),
     };
     updateProject(currentProjectId, { clips: [...project.clips, clip] });
+  },
+
+  createClipsFromAutoSegments: (segments) => {
+    const { currentProjectId, projects, updateProject } = useProjectStore.getState();
+    if (!currentProjectId) return;
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (!project) return;
+
+    const now = new Date().toISOString();
+    const autoClips: Clip[] = segments
+      .filter((segment) => segment.state === "keep" && segment.endSec > segment.startSec)
+      .sort((a, b) => a.startSec - b.startSec)
+      .map((segment, index) => ({
+        id: generateId(),
+        startTimeSec: segment.startSec,
+        endTimeSec: segment.endSec,
+        label: `自动回合 ${index + 1}`,
+        notes: `source:auto-dead-time confidence:${segment.confidence.toFixed(2)} reason:${segment.reason.join(",")}`,
+        anchorMarkerId: undefined,
+        exportStatus: "none",
+        createdAt: now,
+      }));
+
+    updateProject(currentProjectId, { clips: [...project.clips, ...autoClips] });
   },
 
   deleteClip: (clipId) => {

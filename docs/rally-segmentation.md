@@ -1,0 +1,228 @@
+# 基于球轨迹的回合切分
+
+本文定义 BadmFrame 下一版自动剪辑核心：基于 shuttle trajectory 切分羽毛球回合。该路线替代 ADR-0003 中效果不达标的全局运动量启发式方案。
+
+## 目标
+
+- 每轮回合切得更准。
+- 先生成可审查的候选回合，而不是直接一键导出最终剪辑。
+- 以球轨迹、自动主场地/活动区域估计、轨迹连续性、球速/方向变化和状态机作为核心信号。
+- 用人工审查结果建立评估集，后续所有算法改动必须能量化比较。
+
+## 总体流程
+
+```text
+输入视频
+  -> 抽帧
+  -> 主场地 / 活动区域估计
+  -> TrackNetV3 推理得到球点
+  -> 轨迹清洗与插值
+  -> 轨迹特征计算
+  -> rally 状态机
+  -> 候选回合 clips
+  -> 人工审查 / 修正
+  -> 保存标注和候选结果
+```
+
+## 数据结构
+
+### Shuttle Point
+
+```json
+{
+  "frameIndex": 1234,
+  "timeSec": 41.13,
+  "x": 512.4,
+  "y": 218.7,
+  "confidence": 0.91,
+  "visible": true,
+  "source": "tracknetv3"
+}
+```
+
+### Rally Candidate
+
+```json
+{
+  "id": "rally-001",
+  "startSec": 18.4,
+  "endSec": 31.8,
+  "confidence": 0.78,
+  "startReason": ["continuous_trajectory", "serve_or_first_hit"],
+  "endReason": ["long_missing_trajectory", "drop_candidate"],
+  "reviewState": "pending",
+  "trajectoryStats": {
+    "visibleRatio": 0.72,
+    "maxGapSec": 0.42,
+    "directionChanges": 8,
+    "meanSpeedPxSec": 920
+  }
+}
+```
+
+### Human Review
+
+```json
+{
+  "candidateId": "rally-001",
+  "action": "adjust",
+  "startSec": 17.9,
+  "endSec": 32.6,
+  "comment": "end was cut before shuttle hit floor"
+}
+```
+
+## 关键模块
+
+### 1. 主场地估计
+
+产品目标不要求用户手动框选球场。第一版应自动估计主场地或主活动区域，并把结果作为后续 TrackNet 点过滤和候选置信度的一部分。
+
+优先级：
+
+- 默认自动估计主场地或主活动区域。
+- 多场地误检时降低候选置信度，但不打断用户流程。
+- 输出可调试的 `courtEstimate`，用于评估和后续 UI 展示。
+- POC 阶段可以允许配置文件覆盖 ROI，但不能把手动画框作为产品主路径。
+
+可选实现信号：
+
+- 首帧或抽样帧的球场线/地板区域。
+- 人物和球点长期活动密度。
+- TrackNet 初始球点聚类。
+- 与人工标注回合重合度最高的候选区域。
+
+### 2. TrackNetV3 推理
+
+目标输出每帧球点、可见性和置信度。
+
+要求：
+
+- 模型环境独立于主 FastAPI 进程，优先作为离线 worker 或 CLI。
+- 推理结果写 JSON，便于复现、调试和重新跑状态机。
+- 低置信度点不直接丢弃，进入轨迹清洗阶段。
+
+### 3. 轨迹清洗
+
+处理 TrackNet 常见问题：
+
+- 短时间丢球：插值或保持 active。
+- 背景误检：用主场地估计、速度上限、轨迹平滑过滤。
+- 多场地干扰：优先保留主活动区域内或与上一轨迹连续的点。
+- 突然跳点：如果速度不合理且无法连接，标记为 outlier。
+
+### 4. 轨迹特征
+
+按时间窗口计算：
+
+- 可见点比例。
+- 最大连续丢球时长。
+- 速度均值/峰值。
+- 方向变化次数。
+- 轨迹是否靠近网/地面/边线候选区域。
+- 轨迹是否从静止/低速进入高速。
+
+### 5. Rally 状态机
+
+```text
+Idle
+  -> RallyActive
+     条件：连续有效球轨迹达到 N 帧，或出现 serve/first-hit 候选。
+
+RallyActive
+  -> RallyActive
+     条件：球轨迹连续，或短暂丢球时间小于 gap_tolerance。
+
+RallyActive
+  -> RallyEndCandidate
+     条件：长时间无球、轨迹停止、落点/下网候选、明显离开主活动区域。
+
+RallyEndCandidate
+  -> RallyActive
+     条件：球轨迹很快恢复且与之前轨迹连续。
+
+RallyEndCandidate
+  -> RallyEnd
+     条件：无球持续超过 end_tolerance，或出现捡球/重置候选。
+
+RallyEnd
+  -> Idle
+     输出带 pre/post buffer 的候选回合。
+```
+
+## 评估方法
+
+先建立小评估集，而不是继续凭观看感觉调参。
+
+建议从 `video/140.mp4` 开始：
+
+- 人工标注 10-20 个真实回合边界。
+- 每个边界记录 `startSec`、`endSec`、是否完整、备注。
+- 算法输出和人工标注比较：
+  - `boundary_error_start`
+  - `boundary_error_end`
+  - `missed_rallies`
+  - `false_rallies`
+  - `fragmented_rallies`
+  - `merged_rallies`
+
+第一阶段成功标准：
+
+- 召回优先：主要回合尽量不漏。
+- 候选边界允许粗糙，可前后多留几秒，但用户审查成本低。
+- 误切原因可解释到轨迹缺失、误检、主场地估计错误或状态机阈值。
+- 多场地球馆视频中，背景场地误报可存在，但不能压过主场地有效回合。
+
+## 实施阶段
+
+### 阶段 0：标注和评估
+
+- 创建 rally 标注 JSON 格式。
+- 在 `video/140.mp4` 上人工标注第一批回合。
+- 写评估脚本，比较候选和人工标注。
+
+### 阶段 1：TrackNetV3 离线 POC
+
+- 以外部模型/CLI 方式跑 TrackNetV3。
+- 输入视频或抽帧目录，输出 shuttle points JSON。
+- 不急着接入前端。
+
+### 阶段 2：主场地估计和轨迹清洗
+
+- 自动估计主场地或主活动区域。
+- 支持调试用 ROI 配置覆盖，但不作为用户主流程。
+- 实现区域过滤、短 gap 保持、跳点过滤、简单插值。
+- 输出清洗前/后的轨迹调试文件。
+
+### 阶段 3：Rally 状态机
+
+- 基于轨迹特征输出候选 rally clips。
+- 每个候选保留 reason 和 stats。
+- 跑评估脚本，记录结果。
+
+### 阶段 4：人工审查 UI
+
+- 时间线显示候选回合边界。
+- 可视化球轨迹和丢点区间。
+- 支持确认、调整、合并、拆分、删除候选。
+- 保存人工修正结果。
+
+### 阶段 5：再考虑自动导出
+
+- 当评估集上候选足够稳定后，再把确认后的 rally clips 接入导出。
+- 未确认候选不直接进入最终剪辑。
+
+## 风险
+
+- TrackNetV3 模型权重、环境和许可证需要确认。
+- 业余视频可能是手机竖屏、远景、多场地、遮挡严重。
+- 球轨迹会频繁丢失，必须允许短 gap。
+- 下网/落地不一定能单靠 2D 轨迹可靠判断，需要人工审查兜底。
+- 自动主场地估计不可靠时，候选置信度和错误原因必须可见，避免伪装成确定结果。
+
+## 参考
+
+- TrackNetV3 GitHub: https://github.com/qaz812345/TrackNetV3
+- TrackNetV3 paper: https://people.cs.nycu.edu.tw/~yushuen/data/TrackNetV3.pdf
+- MonoTrack paper: https://openaccess.thecvf.com/content/CVPR2022W/CVSports/papers/Liu_MonoTrack_Shuttle_Trajectory_Reconstruction_From_Monocular_Badminton_Video_CVPRW_2022_paper.pdf
+- Shuttlecock fall detection / court model: https://www.mdpi.com/1424-8220/22/21/8098
