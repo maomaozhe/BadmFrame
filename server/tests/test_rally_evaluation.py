@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from tools.evaluate_rallies import evaluate_rallies, load_candidates, load_rally_annotations
+from app.schemas.rally import RallyCandidateRead
+from app.services.rally_evaluation import RallyInterval, evaluate_candidates, load_annotations
 
 
 def _annotations(*ranges):
@@ -118,3 +120,72 @@ def test_cli_writes_json_report(tmp_path):
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["matchedRallies"] == 8
     assert report["falsePositives"] == 1
+
+
+def test_service_reports_matches_boundary_errors_misses_and_false_rallies():
+    annotations = [
+        RallyInterval(id="rally-001", start_sec=10, end_sec=20),
+        RallyInterval(id="rally-002", start_sec=30, end_sec=40),
+    ]
+    candidates = [
+        RallyCandidateRead(
+            id="candidate-001",
+            start_sec=8,
+            end_sec=23,
+            confidence=0.9,
+            review_state="pending",
+            start_reason=[],
+            end_reason=[],
+            source="model",
+        ),
+        RallyCandidateRead(
+            id="candidate-002",
+            start_sec=50,
+            end_sec=60,
+            confidence=0.8,
+            review_state="pending",
+            start_reason=[],
+            end_reason=[],
+            source="model",
+        ),
+    ]
+
+    report = evaluate_candidates(annotations, candidates, overlap_threshold=0.3)
+
+    assert report.matched_rallies == 1
+    assert report.missed_rallies == 1
+    assert report.false_rallies == 1
+    assert report.mean_start_error_sec == 2
+    assert report.mean_end_error_sec == 3
+
+
+def test_service_counts_one_candidate_covering_multiple_annotations_as_merged():
+    annotations = [
+        RallyInterval(id="rally-001", start_sec=10, end_sec=20),
+        RallyInterval(id="rally-002", start_sec=24, end_sec=30),
+    ]
+    candidates = [
+        RallyCandidateRead(
+            id="candidate-001",
+            start_sec=9,
+            end_sec=31,
+            confidence=0.9,
+            review_state="pending",
+            start_reason=[],
+            end_reason=[],
+            source="model",
+        )
+    ]
+
+    report = evaluate_candidates(annotations, candidates, overlap_threshold=0.3)
+
+    assert report.matched_rallies == 2
+    assert report.false_rallies == 0
+    assert report.merged_rallies == 1
+
+
+def test_service_loads_reference_annotations():
+    annotations = load_annotations(ROOT / "assets/reference/rally_annotations_140.json")
+
+    assert len(annotations) == 8
+    assert annotations[0].end_sec > annotations[0].start_sec

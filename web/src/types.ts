@@ -81,6 +81,37 @@ export interface AutoClipDraft {
   createdAt?: string;
 }
 
+export type RallyReviewState = "pending" | "accepted" | "rejected" | "adjusted";
+export type RallySource = "model" | "imported-json" | "manual";
+
+export interface RallyCandidate {
+  id: string;
+  startSec: number;
+  endSec: number;
+  confidence: number;
+  reviewState: RallyReviewState;
+  startReason: string[];
+  endReason: string[];
+  source: RallySource;
+  trajectoryStats?: {
+    visibleRatio?: number;
+    maxGapSec?: number;
+    directionChanges?: number;
+    meanSpeedPxSec?: number;
+  };
+}
+
+export interface RallyAnalysisResult {
+  taskId: string;
+  videoId: string;
+  projectId?: string;
+  status: "queued" | "running" | "completed" | "failed";
+  progress: number;
+  durationSec: number;
+  candidates: RallyCandidate[];
+  error?: string;
+}
+
 export type EditorTab = "markers" | "clips" | "auto" | "info";
 
 export interface ExportJob {
