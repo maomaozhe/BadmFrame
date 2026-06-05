@@ -8,8 +8,9 @@ BadmFrame 是面向羽毛球视频的剪辑和标注应用。MVP 已有 iOS、We
 - 技术架构：见 [ADR-0002](docs/decisions/0002-technical-architecture.md)。iOS 与 Web 独立运行，数据不同步。
 - iOS：SwiftUI + AVFoundation + SwiftData，纯本地，零第三方依赖。命令行无签名构建可通过，仍需真机/模拟器交互验证。
 - Web 前端：React 19 + Tailwind v4 + shadcn/ui + Zustand。`npm run build` 已验证通过。
-- Web 后端：FastAPI + MySQL + Redis + Celery + FFmpeg。`server/.venv/bin/pytest` 已验证 20 tests 通过。
+- Web 后端：FastAPI + MySQL + Redis + Celery + FFmpeg。`server/.venv/bin/pytest` 已验证 28 tests 通过。
 - E2E：Web 端已有 Playwright 套件，位于 `web/e2e/`，含 10 个 spec。
+- Rally 评估闭环：`tools/evaluate_rallies.py` 已可对比人工标注与 `rally_candidates.json`，输出召回、误报、边界误差、合并和碎片化指标；下一步优先接模型 POC 产物。
 
 ## 读文档策略
 
@@ -45,6 +46,11 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ./.venv/bin/pytest
 alembic upgrade head
+
+# Rally 候选评估
+python tools/evaluate_rallies.py \
+  --annotations assets/reference/rally_annotations_140.json \
+  --candidates server/tests/fixtures/rally_candidates.example.json
 ```
 
 ## 开发约定

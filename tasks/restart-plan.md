@@ -13,6 +13,7 @@ BadmFrame 重启后同时推进两件事：
 
 - 旧的全局运动量/音频启发式自动剪辑已暂停，只作为失败基线和对照实验保留。
 - `video/140.mp4` 已有第一批人工 rally 标注：`assets/reference/rally_annotations_140.json`。
+- Rally 评估脚本已完成：`tools/evaluate_rallies.py` 可对比人工标注和候选输出，报告召回、误报、边界误差、合并和碎片化；示例候选见 `server/tests/fixtures/rally_candidates.example.json`。
 - Web 已有自动剪辑实验入口和合辑导出实验代码，但仍是本地模拟/启发式草稿，不代表最终产品能力。
 - iOS 当前支持导入、播放、标记、片段和导出，暂不接模型。
 - 当前 macOS 工作区缺少 FFmpeg、Docker、Conda；用户计划在 Windows 设备继续开发，且 Windows 环境可用于模型 POC。
@@ -60,8 +61,8 @@ BadmFrame 重启后同时推进两件事：
 
 ## 下一步任务
 
-1. 写 rally 评估脚本，对比人工标注和候选输出。
-2. 确认 TrackNetV3 权重与运行方式，产出第一份 `shuttle_points.json`。
+1. 确认 TrackNetV3 权重、许可证与运行方式，产出第一份 `shuttle_points.json`。
+2. 用 `tools/evaluate_rallies.py` 评估第一版 `rally_candidates.json`，优先看召回和漏检。
 3. 做自动主场地/活动区域估计的 POC。
 4. 将 Web 自动 tab 从 keep/cut 草稿改为 rally candidate 审查。
 5. 输出 iOS/Web 统一 UI 信息架构草图。
