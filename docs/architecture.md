@@ -185,6 +185,18 @@ server/
 | 裁剪精度 | 关键帧间隔（~1-2s） | 关键帧间隔（~1-2s） |
 | 转码 | 不转码，直接读原文件 | 不转码，原文件上传到服务器 |
 
+## Android 端（MVP-A 骨架）
+
+Android 当前采用 Android-first MVP-A 骨架路线：先用 Kotlin + Jetpack Compose 建立可运行产品壳，模型层通过 `RallyProvider` 抽象接入，第一版只使用 deterministic `MockRallyProvider` 生成候选回合。
+
+当前 Android 范围：
+
+- `android/core`：纯 Kotlin rally contract、mock provider、回合审查状态流和单元测试。
+- `android/app`：Compose 单 Activity，展示样例视频占位、提取回合、候选列表、状态统计、确认/删除/调整、转换片段草稿。
+- 暂不接真实视频导入、播放、导出或真实模型。
+
+后续真实模型或服务端分析只需要替换 `RallyProvider` 实现；审查 UI 和片段草稿转换逻辑不应绑定 mock provider。
+
 ## 未决问题
 
 - 多角度视频关联是否需要在 MVP 阶段支持？

@@ -9,6 +9,7 @@ xcuserdata/
 
 # Dependencies
 node_modules/
+.gradle/
 
 # Build outputs
 dist/
@@ -16,6 +17,7 @@ build/
 out/
 .next/
 .nuxt/
+android/**/build/
 
 # Caches
 .cache/
@@ -30,6 +32,7 @@ coverage/
 .env
 .env.*
 !.env.example
+local.properties
 
 # Logs
 *.log
