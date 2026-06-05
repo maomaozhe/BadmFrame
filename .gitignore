@@ -20,6 +20,8 @@ out/
 # Caches
 .cache/
 .turbo/
+.worktrees
+.worktrees/
 coverage/
 *.tsbuildinfo
 
