@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AutoClipSegment, Clip, ClipExportStatus } from "@/types";
+import type { AutoClipSegment, Clip, ClipExportStatus, RallyCandidate } from "@/types";
 import { useProjectStore } from "./projectSlice";
 import { api } from "@/services/api";
 import { generateId } from "@/utils";
@@ -8,6 +8,7 @@ interface ClipSlice {
   createClip: (startTimeSec: number, endTimeSec: number, label?: string, anchorMarkerId?: string) => void;
   createClipFromMarker: (markerTimestamp: number, duration: number) => void;
   createClipsFromAutoSegments: (segments: AutoClipSegment[]) => void;
+  createClipsFromRallyCandidates: (candidates: RallyCandidate[]) => void;
   deleteClip: (clipId: string) => void;
   updateClip: (clipId: string, updates: Partial<Pick<Clip, "startTimeSec" | "endTimeSec" | "label" | "notes">>) => void;
   updateExportStatus: (clipId: string, status: ClipExportStatus, filePath?: string) => void;
@@ -95,6 +96,33 @@ export const useClipStore = create<ClipSlice>(() => ({
       }));
 
     updateProject(currentProjectId, { clips: [...project.clips, ...autoClips] });
+  },
+
+  createClipsFromRallyCandidates: (candidates) => {
+    const { currentProjectId, projects, updateProject } = useProjectStore.getState();
+    if (!currentProjectId) return;
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (!project) return;
+
+    const now = new Date().toISOString();
+    const rallyClips: Clip[] = candidates
+      .filter((candidate) =>
+        (candidate.reviewState === "accepted" || candidate.reviewState === "adjusted") &&
+        candidate.endSec > candidate.startSec
+      )
+      .sort((a, b) => a.startSec - b.startSec)
+      .map((candidate, index) => ({
+        id: generateId(),
+        startTimeSec: candidate.startSec,
+        endTimeSec: candidate.endSec,
+        label: `有效回合 ${index + 1}`,
+        notes: `source:rally-candidate candidate:${candidate.id} confidence:${candidate.confidence.toFixed(2)} state:${candidate.reviewState}`,
+        anchorMarkerId: undefined,
+        exportStatus: "none",
+        createdAt: now,
+      }));
+
+    updateProject(currentProjectId, { clips: [...project.clips, ...rallyClips] });
   },
 
   deleteClip: (clipId) => {
