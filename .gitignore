@@ -22,6 +22,7 @@ out/
 .turbo/
 .worktrees
 .worktrees/
+__pycache__/
 coverage/
 *.tsbuildinfo
 

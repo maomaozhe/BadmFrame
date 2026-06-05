@@ -14,14 +14,26 @@
 
 - [x] 定义 `rally_annotations.json` 格式。
 - [x] 为 `video/140.mp4` 标注第一批真实回合。
-- [ ] 写评估脚本：输入人工标注和候选，输出边界误差、漏检、误检、合并、碎片化。
+- [x] 写评估脚本：输入人工标注和候选，输出边界误差、漏检、误检、合并、碎片化。
 - [ ] 记录 ADR-0003 当前输出作为失败基线。
 
 产出：
 
 - `assets/reference/rally_annotations_140.json`
 - `server/tests/fixtures/rally_candidates.example.json`
-- `tools/evaluate_rallies.py` 或等价脚本
+- `tools/evaluate_rallies.py`
+
+运行方式：
+
+```bash
+python tools/evaluate_rallies.py \
+  --annotations assets/reference/rally_annotations_140.json \
+  --candidates server/tests/fixtures/rally_candidates.example.json
+```
+
+如需保存机器可读报告，追加 `--output reports/rally_eval_140.json`。
+
+真实视频（如 `video/140.mp4`）只保存在本地，通过脚本参数或环境约定传入后续推理流程；仓库只提交小型 JSON、脚本、测试和文档，不提交大视频、模型权重、推理缓存或导出结果。
 
 ## 阶段 1：TrackNetV3 POC
 
