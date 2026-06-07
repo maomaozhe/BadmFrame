@@ -1,0 +1,15 @@
+{
+  "window": {
+    "window_sec": 0.8,
+    "step_sec": 0.25,
+    "min_visible_ratio": 0.2,
+    "min_motion_px_sec": 220.0,
+    "min_spread_px": 260.0,
+    "merge_gap_sec": 1.0,
+    "min_rally_duration_sec": 2.0,
+    "pre_buffer_sec": 0.25,
+    "post_buffer_sec": 0.0,
+    "start_sec": 0.0,
+    "end_sec": null
+  }
+}

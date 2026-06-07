@@ -74,6 +74,8 @@ export function EditorView({ onBack }: Props) {
       mode,
       progress: 0.2,
       segments: [],
+      stage: "uploading",
+      message: "Uploading video for TrackNetV3 inference",
       createdAt: new Date().toISOString(),
     });
 

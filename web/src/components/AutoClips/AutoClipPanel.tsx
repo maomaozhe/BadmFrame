@@ -49,8 +49,19 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply
           </button>
         </div>
         {draft?.status === "running" && (
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-primary transition-all" style={{ width: `${draft.progress * 100}%` }} />
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{draft.message || draft.stage || "Running"}</span>
+              <span>{Math.round(draft.progress * 100)}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-all" style={{ width: `${draft.progress * 100}%` }} />
+            </div>
+          </div>
+        )}
+        {draft?.status === "failed" && (
+          <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+            {draft.error || draft.message || "Rally detection failed"}
           </div>
         )}
         {draft?.status === "completed" && (

@@ -11,6 +11,13 @@ BadmFrame 是面向羽毛球视频的剪辑和标注应用。MVP 已有 iOS、We
 - Web 后端：FastAPI + MySQL + Redis + Celery + FFmpeg。`server/.venv/bin/pytest` 已验证 28 tests 通过。
 - E2E：Web 端已有 Playwright 套件，位于 `web/e2e/`，含 10 个 spec。
 - Rally 评估闭环：`tools/evaluate_rallies.py` 已可对比人工标注与 `rally_candidates.json`，输出召回、误报、边界误差、合并和碎片化指标；下一步优先接模型 POC 产物。
+- 模型层：`model/` 已作为独立 TrackNetV3 适配层；官方 TrackNetV3 以 submodule 位于 `model/vendor/TrackNetV3`，权重、视频和推理输出放 `model/.local/` 且不入库。
+  - **2026-06-07 管线已打通**：统一脚本 `model/scripts/run_pipeline.py` 串起 TrackNetV3 推理→CSV 转换→轨迹清理→窗口分割→输出 `rally_candidates.json`。
+  - 最优窗口参数存于 `model/scripts/best_params.json`：merge_gap=1.0, vis=0.2, mot=220, spread=260。`E:\badm-video\140.mp4` 使用 TrackNet-only（`--skip-inpaintnet`）完整推理并评估前250s：recall=1.0, precision=0.7619, avg startErr=0.612s, avg endErr=0.501s。
+  - RallyRefiner（`model/badm_model/rally_refiner.py`）边界精修方案已实现但未启用——局部重检测会降低召回率，当前不如直接调优窗口参数。
+  - Web 后端已接入：`server/app/services/rally_detection.py` 子进程调用管线，`server/app/api/rallies.py` 三个端点（POST 启动 / GET 结果 / GET 进度），Celery 任务 `server/app/tasks/rally_detection.py` 已注册。
+  - **TrackNetV3 推理耗时**：~12 分钟/10分钟视频（25 FPS），需要 NVIDIA GPU。MVP 阶段可跳过推理（`--skip-tracknet`），用已有 CSV 接管线。
+  - 仅 1 个视频有手工标注（`assets/reference/rally_annotations_140.json`，16 回合），参数可能过拟合，后续需要更多标注视频。
 
 ## 读文档策略
 
@@ -51,6 +58,39 @@ alembic upgrade head
 python tools/evaluate_rallies.py \
   --annotations assets/reference/rally_annotations_140.json \
   --candidates server/tests/fixtures/rally_candidates.example.json
+
+# 模型层：TrackNetV3 CSV -> shuttle_points.json dry run
+python model/scripts/run_tracknetv3.py \
+  --video /path/to/140.mp4 \
+  --output-dir model/.local/runs/140-dry \
+  --skip-predict \
+  --tracknet-csv /path/to/140_ball.csv \
+  --fps 30 \
+  --frame-width 1920 \
+  --frame-height 1080
+
+# 模型层：完整管线（推理 → CSV 转换 → 清理 → 分割 → 输出）
+python model/scripts/run_pipeline.py \
+  --video /path/to/video.mp4 \
+  --config model/configs/tracknetv3.local.json \
+  --output-dir model/.local/runs/my-run/ \
+  --progress-file model/.local/runs/my-run/progress.json
+
+# 模型层：跳过推理的 dry run（用已有 CSV）
+python model/scripts/run_pipeline.py \
+  --video /path/to/video.mp4 \
+  --output-dir model/.local/runs/dry-run/ \
+  --skip-tracknet \
+  --tracknet-csv /path/to/ball.csv \
+  --fps 29 --frame-width 960 --frame-height 544
+
+# 模型层：调参（可选 --refine 启用精修器）
+python model/scripts/tune_rally_segmentation.py \
+  --input model/.local/runs/140/shuttle_points.json \
+  --annotations assets/reference/rally_annotations_140.json \
+  --output model/.local/runs/140/tuned/ \
+  --window-sec 0.8 --step-sec 0.25 \
+  --end-sec 250
 ```
 
 ## 开发约定

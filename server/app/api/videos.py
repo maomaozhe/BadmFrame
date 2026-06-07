@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.project import Project
 from app.models.video import SourceVideo
 from app.schemas.video import SourceVideoRead
 from app.services.storage import save_upload
@@ -30,6 +31,10 @@ async def upload_video(file: UploadFile, db: AsyncSession = Depends(get_db)):
         logger.error("Failed to extract video metadata: %s", e)
         raise HTTPException(400, f"Unplayable video: {e}")
 
+    project = Project(name=dest.name.rsplit(".", 1)[0])
+    db.add(project)
+    await db.flush()
+    video.project_id = project.id
     db.add(video)
     await db.commit()
     await db.refresh(video)

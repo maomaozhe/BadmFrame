@@ -1,0 +1,7 @@
+{
+  "tracknet_repo": "model/vendor/TrackNetV3",
+  "tracknet_checkpoint": "model/.local/ckpts/TrackNet_best.pt",
+  "inpaintnet_checkpoint": "model/.local/ckpts/InpaintNet_best.pt",
+  "python": "python"
+}
+

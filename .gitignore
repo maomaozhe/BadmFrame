@@ -51,3 +51,14 @@ pnpm-debug.log*
 exports/
 media/
 tmp/
+
+# Model-layer local state, weights, and inference outputs
+model/.local/
+model/runs/
+model/configs/*.local.json
+*.pt
+*.pth
+*.onnx
+*_ball.csv
+*_pred.csv
+*_trajectory.mp4

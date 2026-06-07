@@ -13,5 +13,5 @@ celery_app.conf.update(
     worker_concurrency=1,
     task_track_started=True,
     result_expires=3600,
-    imports=["app.tasks.export", "app.tasks.analysis"],
+    imports=["app.tasks.export", "app.tasks.analysis", "app.tasks.rally_detection"],
 )

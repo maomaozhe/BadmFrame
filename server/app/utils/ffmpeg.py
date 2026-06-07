@@ -41,7 +41,11 @@ async def _run_ffprobe(file_path: Path) -> dict:
 
 
 async def extract_metadata(file_path: Path) -> VideoMetadata:
-    data = await _run_ffprobe(file_path)
+    try:
+        data = await _run_ffprobe(file_path)
+    except FileNotFoundError:
+        return _extract_metadata_with_opencv(file_path)
+
     meta = VideoMetadata()
 
     video_stream = None
@@ -67,6 +71,34 @@ async def extract_metadata(file_path: Path) -> VideoMetadata:
     fmt = data.get("format", {})
     meta.duration_sec = float(fmt.get("duration", 0))
     return meta
+
+
+def _extract_metadata_with_opencv(file_path: Path) -> VideoMetadata:
+    try:
+        import cv2
+    except ImportError as error:
+        raise RuntimeError("Unable to read video metadata. Install ffprobe or opencv-python-headless.") from error
+
+    cap = cv2.VideoCapture(str(file_path))
+    try:
+        if not cap.isOpened():
+            raise RuntimeError(f"OpenCV could not open video: {file_path}")
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+        fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
+        frame_count = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        duration = frame_count / fps if fps > 0 else 0
+        return VideoMetadata(
+            duration_sec=duration,
+            width=width,
+            height=height,
+            frame_rate=fps,
+            codec="unknown",
+            is_vfr=False,
+        )
+    finally:
+        cap.release()
 
 
 async def generate_thumbnail(video_path: Path, time_sec: float, output_path: Path, size: str = "120x68") -> None:

@@ -77,6 +77,9 @@ export interface AutoClipDraft {
   mode: AutoClipMode;
   progress: number;
   segments: AutoClipSegment[];
+  taskId?: string;
+  stage?: string;
+  message?: string;
   error?: string;
   createdAt?: string;
 }

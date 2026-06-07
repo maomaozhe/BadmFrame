@@ -1,0 +1,28 @@
+{
+  "sourceVideo": "E:\\videos\\140.mp4",
+  "source": "tracknetv3",
+  "fps": 30.0,
+  "frameWidth": 1920,
+  "frameHeight": 1080,
+  "points": [
+    {
+      "frameIndex": 0,
+      "timeSec": 0.0,
+      "x": 512.0,
+      "y": 218.0,
+      "confidence": 1.0,
+      "visible": true,
+      "source": "tracknetv3"
+    },
+    {
+      "frameIndex": 1,
+      "timeSec": 0.033333,
+      "x": 0.0,
+      "y": 0.0,
+      "confidence": 0.0,
+      "visible": false,
+      "source": "tracknetv3"
+    }
+  ]
+}
+

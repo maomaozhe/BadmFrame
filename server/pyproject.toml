@@ -12,6 +12,7 @@ dependencies = [
     "celery[redis]>=5.4.0",
     "python-multipart>=0.0.12",
     "pydantic-settings>=2.6.0",
+    "opencv-python-headless>=4.10.0",
 ]
 
 [project.optional-dependencies]

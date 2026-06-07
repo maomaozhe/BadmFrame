@@ -1,56 +1,24 @@
 {
-  "video": "video/140.mp4",
+  "video": "140.mp4",
   "source": "user_manual_annotation",
   "createdFor": "rally-segmentation-evaluation",
   "courtRoi": null,
   "rallies": [
-    {
-      "id": "rally-001",
-      "startSec": 14,
-      "endSec": 21,
-      "note": ""
-    },
-    {
-      "id": "rally-002",
-      "startSec": 27,
-      "endSec": 31,
-      "note": ""
-    },
-    {
-      "id": "rally-003",
-      "startSec": 35,
-      "endSec": 40,
-      "note": ""
-    },
-    {
-      "id": "rally-004",
-      "startSec": 43,
-      "endSec": 51,
-      "note": ""
-    },
-    {
-      "id": "rally-005",
-      "startSec": 53,
-      "endSec": 58,
-      "note": ""
-    },
-    {
-      "id": "rally-006",
-      "startSec": 65,
-      "endSec": 70,
-      "note": ""
-    },
-    {
-      "id": "rally-007",
-      "startSec": 74,
-      "endSec": 82,
-      "note": ""
-    },
-    {
-      "id": "rally-008",
-      "startSec": 87,
-      "endSec": 115,
-      "note": ""
-    }
+    { "id": "rally-001", "startSec": 19, "endSec": 29, "note": "" },
+    { "id": "rally-002", "startSec": 42.16, "endSec": 47.74, "note": "" },
+    { "id": "rally-003", "startSec": 57.8, "endSec": 63, "note": "" },
+    { "id": "rally-004", "startSec": 67, "endSec": 71, "note": "" },
+    { "id": "rally-005", "startSec": 77, "endSec": 82, "note": "" },
+    { "id": "rally-006", "startSec": 86, "endSec": 93, "note": "" },
+    { "id": "rally-007", "startSec": 98, "endSec": 104, "note": "" },
+    { "id": "rally-008", "startSec": 108, "endSec": 112, "note": "" },
+    { "id": "rally-009", "startSec": 118, "endSec": 128, "note": "" },
+    { "id": "rally-010", "startSec": 143, "endSec": 151, "note": "" },
+    { "id": "rally-011", "startSec": 156, "endSec": 163, "note": "" },
+    { "id": "rally-012", "startSec": 169, "endSec": 181, "note": "" },
+    { "id": "rally-013", "startSec": 189, "endSec": 201, "note": "" },
+    { "id": "rally-014", "startSec": 218, "endSec": 223, "note": "" },
+    { "id": "rally-015", "startSec": 229, "endSec": 233, "note": "" },
+    { "id": "rally-016", "startSec": 240, "endSec": 250, "note": "" }
   ]
 }

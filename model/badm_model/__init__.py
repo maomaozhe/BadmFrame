@@ -1,0 +1,2 @@
+"""BadmFrame model-layer utilities."""
+

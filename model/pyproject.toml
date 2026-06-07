@@ -1,0 +1,20 @@
+[project]
+name = "badmframe-model"
+version = "0.1.0"
+description = "BadmFrame model adapter layer for TrackNetV3 shuttle point JSON generation"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+metadata = [
+  "opencv-python>=4.4",
+]
+dev = []
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
