@@ -8,7 +8,19 @@ export function VideoPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentProjectId = useProjectStore((s) => s.currentProjectId);
   const projects = useProjectStore((s) => s.projects);
-  const { currentTime, duration, isPlaying, isLoading, setCurrentTime, setDuration, setIsPlaying, setIsLoading } =
+  const {
+    currentTime,
+    duration,
+    isPlaying,
+    isLoading,
+    seekRequest,
+    playRequest,
+    setCurrentTime,
+    setDuration,
+    setIsPlaying,
+    setIsLoading,
+    clearPlaybackRequest,
+  } =
     useVideoStore();
 
   const project = projects.find((p) => p.id === currentProjectId);
@@ -31,7 +43,13 @@ export function VideoPlayer() {
       setIsLoading(false);
     };
     const onError = () => setIsLoading(false);
-    const onTime = () => setCurrentTime(video.currentTime);
+    const onTime = () => {
+      setCurrentTime(video.currentTime);
+      if (playRequest?.endSec !== undefined && video.currentTime >= playRequest.endSec) {
+        video.pause();
+        clearPlaybackRequest();
+      }
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onEnded = () => setIsPlaying(false);
@@ -51,7 +69,20 @@ export function VideoPlayer() {
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEnded);
     };
-  }, [objectURL]);
+  }, [objectURL, playRequest?.endSec]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || seekRequest === null) return;
+    video.currentTime = Math.max(0, Math.min(seekRequest.timeSec, duration || seekRequest.timeSec));
+  }, [seekRequest?.id, duration]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !playRequest) return;
+    video.currentTime = Math.max(0, Math.min(playRequest.startSec, duration || playRequest.startSec));
+    void video.play();
+  }, [playRequest?.id, duration]);
 
   const handleTogglePlay = () => {
     const video = videoRef.current;

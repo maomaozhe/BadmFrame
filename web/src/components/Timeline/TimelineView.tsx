@@ -1,16 +1,27 @@
 import { useRef, useState, useEffect } from "react";
 import { useVideoStore } from "@/store/videoSlice";
 import { formatTime, formatTimePrecise } from "@/utils";
-import type { AutoClipSegment, Marker } from "@/types";
+import type { AutoClipSegment, Marker, RallyCandidate } from "@/types";
 
 interface Props {
   duration: number;
   markers: Marker[];
   autoSegments?: AutoClipSegment[];
+  rallyCandidates?: RallyCandidate[];
+  selectedRallyId?: string | null;
+  onSelectRally?: (id: string) => void;
   onAddMarker: () => void;
 }
 
-export function TimelineView({ duration, markers, autoSegments = [], onAddMarker }: Props) {
+export function TimelineView({
+  duration,
+  markers,
+  autoSegments = [],
+  rallyCandidates = [],
+  selectedRallyId = null,
+  onSelectRally,
+  onAddMarker,
+}: Props) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [pixelsPerSecond, setPixelsPerSecond] = useState(10);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -109,6 +120,28 @@ export function TimelineView({ duration, markers, autoSegments = [], onAddMarker
             })}
           </div>
 
+          {/* Rally candidate overlay */}
+          <div className="absolute top-5 left-0 h-9 w-full">
+            {rallyCandidates.map((candidate) => {
+              const left = candidate.startSec * pixelsPerSecond;
+              const width = Math.max(1, (candidate.endSec - candidate.startSec) * pixelsPerSecond);
+              const selected = candidate.id === selectedRallyId;
+              return (
+                <button
+                  key={candidate.id}
+                  className={`absolute top-1 z-20 h-7 border transition-colors ${rallyClass(candidate, selected)}`}
+                  style={{ left, width }}
+                  title={`${formatTimePrecise(candidate.startSec)} - ${formatTimePrecise(candidate.endSec)}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectRally?.(candidate.id);
+                    seekTo(candidate.startSec);
+                  }}
+                />
+              );
+            })}
+          </div>
+
           {/* Marker diamonds */}
           <svg className="absolute top-5 left-0" width={totalWidth + 16} height={44}>
             {markers.sort((a, b) => a.timestampSec - b.timestampSec).map((m) => {
@@ -127,7 +160,7 @@ export function TimelineView({ duration, markers, autoSegments = [], onAddMarker
             style={{ height: 44, left: currentTime * pixelsPerSecond }} />
 
           {/* Click area */}
-          <div className="absolute top-5 left-0 w-full h-11 cursor-pointer" onClick={onTimelineClick} />
+          <div className="absolute top-5 left-0 z-0 w-full h-11 cursor-pointer" onClick={onTimelineClick} />
         </div>
       </div>
     </div>
@@ -149,4 +182,14 @@ function markerColorHex(c: string): string {
     green: "#22c55e", orange: "#f97316", purple: "#a855f7",
   };
   return m[c] ?? "#eab308";
+}
+
+function rallyClass(candidate: RallyCandidate, selected: boolean): string {
+  const stateClass =
+    candidate.reviewState === "accepted" || candidate.reviewState === "adjusted"
+      ? "bg-emerald-500/25 border-emerald-500/70"
+      : candidate.reviewState === "rejected"
+        ? "bg-zinc-400/15 border-zinc-400/40 opacity-60"
+        : "bg-amber-500/20 border-amber-500/60";
+  return selected ? `${stateClass} ring-2 ring-primary ring-offset-1` : stateClass;
 }

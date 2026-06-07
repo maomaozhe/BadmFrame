@@ -3,11 +3,12 @@ import { useProjectStore } from "@/store/projectSlice";
 import { useVideoStore } from "@/store/videoSlice";
 import { useUIStore } from "@/store/uiSlice";
 import { useMarkerStore } from "@/store/markerSlice";
+import { useRallyStore } from "@/store/rallySlice";
 import { VideoPlayer } from "./VideoPlayer";
 import { TimelineView } from "@/components/Timeline/TimelineView";
 import { MarkerPanel } from "@/components/Markers/MarkerPanel";
 import { ClipPanel } from "@/components/Clips/ClipPanel";
-import { AutoClipPanel } from "@/components/AutoClips/AutoClipPanel";
+import { RallyReviewPanel } from "@/components/Rallies/RallyReviewPanel";
 import { ExportDialog } from "@/components/Export/ExportDialog";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { api } from "@/services/api";
@@ -25,7 +26,11 @@ export function EditorView({ onBack }: Props) {
   const { selectedTab, setSelectedTab } = useUIStore();
   const currentTime = useVideoStore((s) => s.currentTime);
   const addMarker = useMarkerStore((s) => s.addMarker);
-  const [autoDraft, setAutoDraft] = useState<AutoClipDraft | null>(null);
+  const rallyCandidates = useRallyStore((s) => s.candidates);
+  const selectedRallyId = useRallyStore((s) => s.selectedCandidateId);
+  const setRallyStatus = useRallyStore((s) => s.setStatus);
+  const setRallyCandidates = useRallyStore((s) => s.setCandidates);
+  const selectRally = useRallyStore((s) => s.selectCandidate);
 
   const project = projects.find((p) => p.id === currentProjectId);
   if (!project) return null;
@@ -33,7 +38,7 @@ export function EditorView({ onBack }: Props) {
   const tabs: { key: EditorTab; label: string }[] = [
     { key: "markers", label: "标记" },
     { key: "clips", label: "片段" },
-    { key: "auto", label: "自动" },
+    { key: "auto", label: "回合" },
     { key: "info", label: "信息" },
   ];
 
@@ -141,11 +146,11 @@ export function EditorView({ onBack }: Props) {
             </button>
           ))}
           <button
-            onClick={() => runAutoClipDraft(autoDraft?.mode ?? "balanced")}
+            onClick={() => void runRallyExtraction()}
             className="px-3 py-1 text-sm rounded-md border hover:bg-accent"
             disabled={!project.sourceVideo}
           >
-            自动剪辑
+            提取回合
           </button>
           <button
             onClick={() => setShowExport(true)}
@@ -162,7 +167,9 @@ export function EditorView({ onBack }: Props) {
       <TimelineView
         duration={project.sourceVideo?.durationSec ?? 0}
         markers={project.markers}
-        autoSegments={visibleAutoSegments}
+        rallyCandidates={rallyCandidates}
+        selectedRallyId={selectedRallyId}
+        onSelectRally={selectRally}
         onAddMarker={() => addMarker(currentTime)}
       />
 
