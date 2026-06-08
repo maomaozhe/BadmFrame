@@ -4,7 +4,7 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.clip import Clip
 from app.models.project import Project
+from app.models.rally_job import RallyJob
 from app.models.video import SourceVideo
 from app.schemas.rally import (
     RallyAnalysisResultRead,

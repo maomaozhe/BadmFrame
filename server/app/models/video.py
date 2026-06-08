@@ -22,6 +22,7 @@ class SourceVideo(Base, UUIDMixin, TimestampMixin):
     codec: Mapped[str] = mapped_column(String(128), default="")
     is_vfr: Mapped[bool] = mapped_column(Boolean, default=False)
     file_size: Mapped[int] = mapped_column(default=0)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     import_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now()
     )

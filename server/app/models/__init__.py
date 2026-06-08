@@ -4,5 +4,6 @@ from app.models.video import SourceVideo
 from app.models.marker import Marker
 from app.models.clip import Clip
 from app.models.job import AnalysisJob, ExportJob
+from app.models.rally_job import RallyJob
 
-__all__ = ["Base", "Project", "SourceVideo", "Marker", "Clip", "AnalysisJob", "ExportJob"]
+__all__ = ["Base", "Project", "SourceVideo", "Marker", "Clip", "AnalysisJob", "ExportJob", "RallyJob"]
