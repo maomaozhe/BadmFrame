@@ -2,7 +2,9 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -38,7 +40,28 @@ async def upload_video(file: UploadFile, db: AsyncSession = Depends(get_db)):
     await db.flush()
     video.project_id = project.id
     db.add(video)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        dest.unlink(missing_ok=True)
+        # Find existing video with same content hash
+        result = await db.execute(
+            select(SourceVideo).where(SourceVideo.content_sha256 == content_sha256)
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "detail": "This video has already been uploaded.",
+                    "video_id": existing.id,
+                    "project_id": existing.project_id,
+                    "file_name": existing.file_name,
+                },
+            )
+        raise HTTPException(500, "Duplicate video detected but existing record not found")
+
     await db.refresh(video)
     return video
 

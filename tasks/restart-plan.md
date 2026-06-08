@@ -67,55 +67,42 @@ BadmFrame 重启后同时推进两件事：
 4. 将 Web 自动 tab 从 keep/cut 草稿改为 rally candidate 审查。
 5. 输出 iOS/Web 统一 UI 信息架构草图。
 
-## 2026-06-07 Handoff
+## 2026-06-08 Handoff
 
 Current branch/worktree:
 
 - Main repo branch: `codex/model-tracknetv3-poc`
-- Main repo commit: `7d47d9a Add TrackNetV3 rally detection pipeline`
-- TrackNetV3 submodule local commit: `b9fb84e Allow loading TrackNet checkpoints on newer PyTorch`
+- Main repo commit: `e5c1966 feat: add rally job persistence, content dedup, and idempotency`
+- Both `main` and `codex/model-tracknetv3-poc` point to the same commit (fast-forward merged).
 - Worktree path: `E:\GitHub\youhua-heimadp\BadmFrame\.worktrees\model-tracknetv3-poc`
 
-Implemented:
+Changes since 2026-06-07:
 
-- `model/` now contains a standalone TrackNetV3 adapter and rally pipeline.
-- `model/scripts/run_pipeline.py` runs: TrackNetV3 inference -> CSV conversion -> trajectory cleaning -> window segmentation -> `rally_candidates.json`.
-- Web backend exposes rally APIs:
-  - `POST /api/v1/videos/{video_id}/rallies`
-  - `GET /api/v1/videos/{video_id}/rallies/{task_id}`
-  - `GET /api/v1/videos/{video_id}/rallies/{task_id}/progress`
-- Web frontend uploads browser-selected videos to the backend, starts rally detection, polls progress, and fills the auto clip panel with returned segments.
-- Backend upload metadata extraction now falls back to OpenCV when `ffprobe` is unavailable. Export still needs FFmpeg.
-- TrackNetV3 inference defaults are low-VRAM: `batch_size=1`, `eval_mode=nonoverlap`, `skip_inpaintnet=true`.
-
-Validated on `E:\badm-video\140.mp4`:
-
-- Full TrackNet-only inference completed in `562.286s`.
-- Best first-250s evaluation output:
-  - recall `1.0000`
-  - precision `0.7619`
-  - false positives `5`
-  - missed rallies `0`
-  - merged candidates `0`
-  - fragmented rallies `0`
-  - average start error `0.612s`
-  - average end error `0.501s`
-- Best local output path:
-  `model/.local/runs/140_full_lowvram_skip_inpaint/window_tuned_250_grid/rally_candidates.json`
+- Merged `main` (10 commits) back into `codex/model-tracknetv3-poc`, bringing in:
+  - `0d77cd7 feat: connect web workflow to backend`
+  - Rally candidate contract tools, mock rally review workflow, Android MVP-A skeleton, docs
+- **Rally job history**: Added `RallyJob` DB model and `rally_jobs` table (alembic 0003).
+- **Content dedup**: Added `content_sha256` to `SourceVideo`, computed during upload.
+- **Idempotency**: `POST /videos/{id}/rallies` checks for existing completed/running RallyJob before submitting new GPU work. Same video won't re-run TrackNetV3.
+- **Task list endpoint**: `GET /videos/{id}/rallies` returns paginated rally detection history for a video.
+- **MySQL compat**: Fixed TEXT column defaults in `0002_job_history.py` for MySQL strict mode.
+- Frontend `npm run build` verified.
 
 Fresh verification before commit:
 
-- `server\.venv\Scripts\python.exe -m pytest tests -q` -> `32 passed`
-- `model\.local\venv\Scripts\python.exe -m pytest model\tests -q` -> `22 passed`
+- `server\.venv\Scripts\python.exe -m pytest tests -q` -> `54 passed`
+- `model\.local\venv\Scripts\python.exe -m pytest model/tests -q` -> `22 passed`
 - `cd web && npm run build` -> success
-- `server/app/utils/ffmpeg.extract_metadata(E:\badm-video\140.mp4)` returns duration `651.4137s`, size `960x544`, fps `29.000002`.
+- `alembic upgrade head` -> `0003` reached (MySQL)
 
-Local run state for manual testing:
+API endpoints (updated):
 
-- Frontend: `http://127.0.0.1:5174`
-- Backend health: `http://127.0.0.1:8000/health`
-- Avoid `uvicorn --reload` while testing uploads because writes under `server/storage/` can trigger reloads.
-- `server/storage/`, `.claude/`, `model/.local/`, and `model/configs/*.local.json` are local-only and should not be committed.
+- `POST /api/v1/videos/{video_id}/rallies` — submit rally detection (idempotent)
+- `GET /api/v1/videos/{video_id}/rallies` — list rally task history (new)
+- `GET /api/v1/videos/{video_id}/rallies/{task_id}` — get result (syncs RallyJob status)
+- `GET /api/v1/videos/{video_id}/rallies/{task_id}/progress` — poll progress
+- `POST /api/v1/videos/{video_id}/rallies/import` — import external rally candidates
+- `POST /api/v1/projects/{project_id}/rallies/apply` — apply accepted rallies as clips
 
 Known follow-ups:
 
@@ -124,3 +111,4 @@ Known follow-ups:
 3. Add progress inside TrackNetV3 inference if users need more than stage-level progress during the 9-10 minute run.
 4. Reduce false positives on the first 250s while preserving zero misses and sub-1s average boundary errors.
 5. Collect at least one more annotated video; current `best_params.json` may overfit `140.mp4`.
+6. Sync RallyJob status from the GPU thread on completion (currently synced on GET result, not on task finish).
