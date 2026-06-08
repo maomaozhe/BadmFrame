@@ -79,7 +79,13 @@ export const useProjectStore = create<ProjectSlice>((set, get) => ({
       ),
     }));
     const project = get().projects.find((p) => p.id === id);
-    if (project) await db.saveProject(project);
+    if (!project) return;
+    // 保存到 IndexedDB 前清除 volatile 的 objectURL（blob: URL 在刷新后失效）
+    const toSave = { ...project };
+    if (toSave.sourceVideo?.objectURL) {
+      toSave.sourceVideo = { ...toSave.sourceVideo, objectURL: undefined };
+    }
+    await db.saveProject(toSave);
   },
 
   async upsertProject(project) {

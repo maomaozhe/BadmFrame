@@ -100,13 +100,18 @@ def run_rally_detection(
     pipeline_script = _resolve_pipeline_script()
     progress_file = output_dir / "progress.json"
     config_path = _resolve_tracknet_config()
+    model_python = _resolve_model_python(config_path)
+
+    # Resolve paths to absolute so they work regardless of subprocess cwd.
+    abs_video_path = str(video_path.resolve())
+    abs_output_dir = str(output_dir.resolve())
 
     cmd = [
-        sys.executable,
+        model_python,
         str(pipeline_script),
-        "--video", str(video_path),
+        "--video", abs_video_path,
         "--config", str(config_path),
-        "--output-dir", str(output_dir),
+        "--output-dir", abs_output_dir,
         "--progress-file", str(progress_file),
         "--large-video",
         "--batch-size", str(settings.tracknet_batch_size),
@@ -224,6 +229,24 @@ def _resolve_tracknet_config() -> Path:
             "Copy model/configs/tracknetv3.local.example.json and edit paths."
         )
     return config
+
+
+def _resolve_model_python(config_path: Path) -> str:
+    """Read the python executable path from the TrackNetV3 config.
+
+    Uses the same Python that has PyTorch / CUDA available (model/.local/venv).
+    Falls back to ``sys.executable`` if the config has no explicit ``python`` key.
+    """
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    python = data.get("python")
+    if python and Path(python).exists():
+        return python
+    if not python:
+        return sys.executable
+    raise FileNotFoundError(
+        f"Model Python not found at {python}. "
+        "Check the 'python' field in model/configs/tracknetv3.local.json."
+    )
 
 
 def _resolve_pipeline_script() -> Path:

@@ -1,7 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVideoStore } from "@/store/videoSlice";
 import { useProjectStore } from "@/store/projectSlice";
 import { formatTimePrecise } from "@/utils";
+import type { SourceVideo } from "@/types";
+
+function getVideoURL(sourceVideo: SourceVideo | null): string | null {
+  if (!sourceVideo) return null;
+  if (sourceVideo.objectURL) return sourceVideo.objectURL;
+  if (sourceVideo.id) return `/api/v1/videos/${sourceVideo.id}/file`;
+  return null;
+}
 
 export function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,23 +32,31 @@ export function VideoPlayer() {
     useVideoStore();
 
   const project = projects.find((p) => p.id === currentProjectId);
-  const objectURL = project?.sourceVideo?.objectURL;
+  const videoURL = getVideoURL(project?.sourceVideo ?? null);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (!objectURL) {
+    setHasError(false);
+
+    if (!videoURL) {
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    video.src = objectURL;
+    video.src = videoURL;
 
     const onLoaded = () => {
       setDuration(video.duration);
       setIsLoading(false);
+      setHasError(false);
+    };
+    const onError = () => {
+      setIsLoading(false);
+      setHasError(true);
     };
     const onError = () => setIsLoading(false);
     const onTime = () => {
@@ -113,6 +129,17 @@ export function VideoPlayer() {
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <p className="text-white/70 text-sm">加载中...</p>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 gap-2">
+          <p className="text-red-400 text-sm">视频无法播放</p>
+          <p className="text-white/50 text-xs">
+            {project?.sourceVideo?.filePath
+              ? "视频文件可能已被删除，请重新导入"
+              : "视频尚未上传到服务器，请重新导入"}
+          </p>
         </div>
       )}
 

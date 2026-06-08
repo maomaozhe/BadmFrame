@@ -17,6 +17,30 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply
   const keepSec = keepSegments.reduce((sum, segment) => sum + segment.endSec - segment.startSec, 0);
   const cutSec = Math.max(0, duration - keepSec);
 
+  // Simulate progress during the long tracknet stage
+  const simulatedProgress = useSimulatedProgress(draft);
+
+  const displayProgress =
+    draft?.status === "running" && draft.stage === "tracknet"
+      ? simulatedProgress
+      : draft?.progress ?? 0;
+
+  const handleApply = () => {
+    // Remove previous auto clips first (reversible)
+    removeAutoClips();
+    const ids = createClipsFromAutoSegments(keepSegments);
+    setAppliedClipIds(ids);
+    setApplied(true);
+  };
+
+  const handleUndo = () => {
+    for (const id of appliedClipIds) {
+      deleteClip(id);
+    }
+    setAppliedClipIds([]);
+    setApplied(false);
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="sticky top-0 z-10 border-b bg-background px-3 py-2">
@@ -32,7 +56,11 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply
             <option value="aggressive">激进</option>
           </select>
           <button
-            onClick={() => onRun(mode)}
+            onClick={() => {
+              setApplied(false);
+              setAppliedClipIds([]);
+              onRun(mode);
+            }}
             className="inline-flex h-8 items-center gap-1 rounded-md border px-2 text-sm hover:bg-accent disabled:opacity-50"
             disabled={draft?.status === "running" || duration <= 0}
           >
@@ -52,10 +80,10 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{draft.message || draft.stage || "Running"}</span>
-              <span>{Math.round(draft.progress * 100)}%</span>
+              <span>{Math.round(displayProgress * 100)}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary transition-all" style={{ width: `${draft.progress * 100}%` }} />
+              <div className="h-full bg-primary transition-all" style={{ width: `${displayProgress * 100}%` }} />
             </div>
           </div>
         )}
@@ -142,4 +170,45 @@ function Metric({ label, value }: { label: string; value: string }) {
       <div className="font-mono">{value}</div>
     </div>
   );
+}
+
+/**
+ * Simulate progress during the long-running tracknet stage.
+ * TrackNetV3 takes ~0.7s per frame, so ~7 min for a 10-min 30fps video.
+ * We interpolate from 0.03 to 0.65 over a conservative estimate.
+ */
+function useSimulatedProgress(draft: AutoClipDraft | null): number {
+  const [progress, setProgress] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (draft?.status === "running" && draft.stage === "tracknet") {
+      if (!startRef.current) {
+        startRef.current = Date.now();
+      }
+      // Estimate ~10 min for a full video; cap at 0.65 so it doesn't look stuck
+      const estimatedMs = 10 * 60 * 1000;
+      timerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startRef.current;
+        const simulated = 0.03 + (0.65 - 0.03) * Math.min(1, elapsed / estimatedMs);
+        setProgress(Math.round(simulated * 100) / 100);
+      }, 1000);
+    } else {
+      startRef.current = 0;
+      setProgress(0);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [draft?.status, draft?.stage]);
+
+  return progress;
 }

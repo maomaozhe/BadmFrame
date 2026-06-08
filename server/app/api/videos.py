@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -50,3 +52,18 @@ async def get_video(video_id: str, db: AsyncSession = Depends(get_db)):
     if not video:
         raise HTTPException(404, "Video not found")
     return video
+
+
+@router.get("/{video_id}/file")
+async def stream_video_file(video_id: str, db: AsyncSession = Depends(get_db)):
+    """Stream the source video file for browser playback / export."""
+    from sqlalchemy import select
+
+    result = await db.execute(select(SourceVideo).where(SourceVideo.id == video_id))
+    video = result.scalar_one_or_none()
+    if not video:
+        raise HTTPException(404, "Video not found")
+    file_path = Path(video.file_path)
+    if not file_path.exists():
+        raise HTTPException(404, "Video file not found on disk")
+    return FileResponse(file_path, media_type="video/mp4")

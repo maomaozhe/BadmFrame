@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { SourceVideo } from "@/types";
 import { api } from "@/services/api";
 import { generateId, formatTimePrecise, formatFileSize } from "@/utils";
+import { uploadVideoForRally } from "@/services/rallyApi";
 
 interface Props {
   open: boolean;

@@ -89,7 +89,7 @@ def run_tracknetv3_predict(
         "--tracknet_file",
         str(config.tracknet_checkpoint),
         "--save_dir",
-        str(raw_dir),
+        str(raw_dir.resolve()),
         "--eval_mode",
         eval_mode,
         "--batch_size",

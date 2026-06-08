@@ -15,6 +15,8 @@ interface ClipSlice {
   getClips: () => Clip[];
 }
 
+const AUTO_SOURCE = "auto-dead-time";
+
 export const useClipStore = create<ClipSlice>(() => ({
   createClip: (startTimeSec, endTimeSec, label = "", anchorMarkerId) => {
     const { currentProjectId, projects, updateProject } = useProjectStore.getState();
@@ -76,9 +78,9 @@ export const useClipStore = create<ClipSlice>(() => ({
 
   createClipsFromAutoSegments: (segments) => {
     const { currentProjectId, projects, updateProject } = useProjectStore.getState();
-    if (!currentProjectId) return;
+    if (!currentProjectId) return [];
     const project = projects.find((p) => p.id === currentProjectId);
-    if (!project) return;
+    if (!project) return [];
 
     const now = new Date().toISOString();
     const autoClips: Clip[] = segments
@@ -89,13 +91,24 @@ export const useClipStore = create<ClipSlice>(() => ({
         startTimeSec: segment.startSec,
         endTimeSec: segment.endSec,
         label: `自动回合 ${index + 1}`,
-        notes: `source:auto-dead-time confidence:${segment.confidence.toFixed(2)} reason:${segment.reason.join(",")}`,
+        notes: `source:${AUTO_SOURCE} confidence:${segment.confidence.toFixed(2)} reason:${segment.reason.join(",")}`,
         anchorMarkerId: undefined,
-        exportStatus: "none",
+        exportStatus: "none" as ClipExportStatus,
         createdAt: now,
       }));
 
     updateProject(currentProjectId, { clips: [...project.clips, ...autoClips] });
+    return autoClips.map((c) => c.id);
+  },
+
+  removeAutoClips: () => {
+    const { currentProjectId, projects, updateProject } = useProjectStore.getState();
+    if (!currentProjectId) return;
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (!project) return;
+    updateProject(currentProjectId, {
+      clips: project.clips.filter((c) => !c.notes.startsWith(`source:${AUTO_SOURCE}`)),
+    });
   },
 
   createClipsFromRallyCandidates: (candidates) => {
