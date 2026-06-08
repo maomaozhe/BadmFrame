@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 AnalysisMode = Literal["conservative", "balanced", "aggressive"]
 AnalysisStatus = Literal["queued", "running", "completed", "failed"]
@@ -47,3 +48,20 @@ class AutoClipsApplyRequest(BaseModel):
 class AutoClipsApplyResponse(BaseModel):
     created_clip_ids: list[str]
     clips_created: int
+
+
+class AnalysisJobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: str
+    video_id: str
+    project_id: str | None
+    status: AnalysisStatus
+    params: AnalysisParams
+    progress: float = Field(ge=0, le=1)
+    duration_sec: float = 0
+    keep_segments: int = 0
+    cut_segments: int = 0
+    error: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None

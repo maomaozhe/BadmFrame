@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     max_upload_size: int = 2 * 1024 * 1024 * 1024  # 2 GB
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
+    export_concurrency: int = 2
+    analysis_fps: int = 3
+    analysis_width: int = 96
+    analysis_height: int = 54
+    analysis_extract_audio: bool = True
 
     @property
     def uploads_dir(self) -> Path:

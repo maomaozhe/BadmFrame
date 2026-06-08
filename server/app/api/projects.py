@@ -1,12 +1,15 @@
 import logging
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.job import ExportJob
 from app.models.project import Project
 from app.models.video import SourceVideo
+from app.schemas.export import ExportJobRead
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from app.services.storage import cleanup_project_files
 
@@ -45,6 +48,30 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
     project = await _get_project(project_id, db)
     return project
+
+
+@router.get("/{project_id}/exports", response_model=list[ExportJobRead])
+async def list_project_exports(project_id: str, db: AsyncSession = Depends(get_db)):
+    await _get_project(project_id, db)
+    result = await db.execute(
+        select(ExportJob)
+        .where(ExportJob.project_id == project_id)
+        .order_by(ExportJob.created_at.desc())
+    )
+    return [
+        ExportJobRead(
+            task_id=job.task_id,
+            project_id=job.project_id,
+            status=job.status,
+            mode=job.mode,
+            preset=job.preset,
+            results=json.loads(job.results_json or "[]"),
+            error=job.error,
+            created_at=job.created_at,
+            completed_at=job.completed_at,
+        )
+        for job in result.scalars()
+    ]
 
 
 @router.put("/{project_id}", response_model=ProjectRead)

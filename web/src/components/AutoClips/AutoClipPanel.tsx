@@ -1,5 +1,4 @@
 import { Check, RotateCcw, Scissors, Trash2 } from "lucide-react";
-import { useClipStore } from "@/store/clipSlice";
 import { formatTimePrecise } from "@/utils";
 import type { AutoClipDraft, AutoClipMode, AutoClipSegment } from "@/types";
 
@@ -8,10 +7,10 @@ interface Props {
   duration: number;
   onRun: (mode: AutoClipMode) => void;
   onUpdateSegment: (segmentId: string, updates: Partial<AutoClipSegment>) => void;
+  onApply: () => void;
 }
 
-export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment }: Props) {
-  const createClipsFromAutoSegments = useClipStore((s) => s.createClipsFromAutoSegments);
+export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply }: Props) {
   const mode = draft?.mode ?? "balanced";
   const keepSegments = draft?.segments.filter((segment) => segment.state === "keep") ?? [];
   const cutSegments = draft?.segments.filter((segment) => segment.state === "cut") ?? [];
@@ -41,9 +40,9 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment }: Props
             自动剪辑
           </button>
           <button
-            onClick={() => createClipsFromAutoSegments(keepSegments)}
+            onClick={onApply}
             className="ml-auto inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-sm text-primary-foreground disabled:opacity-50"
-            disabled={keepSegments.length === 0}
+            disabled={keepSegments.length === 0 || !draft?.taskId}
           >
             <Check className="h-4 w-4" />
             应用

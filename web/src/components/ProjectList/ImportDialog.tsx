@@ -6,6 +6,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SourceVideo } from "@/types";
+import { api } from "@/services/api";
 import { generateId, formatTimePrecise, formatFileSize } from "@/utils";
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function ImportDialog({ open, onClose }: Props) {
-  const { createProject, setCurrentProject } = useProjectStore();
+  const { setCurrentProject, upsertProject } = useProjectStore();
   const { setShowImport } = useUIStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"select" | "review">("select");
@@ -44,13 +45,26 @@ export function ImportDialog({ open, onClose }: Props) {
   };
 
   const handleCreate = async () => {
-    if (!metadata || !projectName.trim()) return;
-    const project = await createProject(projectName.trim());
-    await useProjectStore.getState().updateProject(project.id, {
-      sourceVideo: metadata,
-    });
-    setCurrentProject(project.id);
-    resetDialog();
+    if (!metadata || !projectName.trim() || !file) return;
+    setLoading(true);
+    setError("");
+    try {
+      const uploaded = await api.uploadVideo(file);
+      const project = await api.createProject(projectName.trim(), uploaded.serverVideoId || uploaded.id);
+      const withPlayback = {
+        ...project,
+        sourceVideo: project.sourceVideo
+          ? { ...project.sourceVideo, objectURL: metadata.objectURL }
+          : { ...uploaded, objectURL: metadata.objectURL },
+      };
+      await upsertProject(withPlayback);
+      setCurrentProject(withPlayback.id);
+      resetDialog();
+    } catch (e: any) {
+      setError(e.message || "后端不可用，无法创建项目");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetDialog = () => {
@@ -116,8 +130,8 @@ export function ImportDialog({ open, onClose }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={resetDialog}>取消</Button>
-            <Button onClick={handleCreate} disabled={!projectName.trim()}>
-              创建项目
+            <Button onClick={handleCreate} disabled={!projectName.trim() || loading}>
+              {loading ? "创建中..." : "创建项目"}
             </Button>
           </DialogFooter>
         </>

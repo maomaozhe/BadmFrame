@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Project } from "@/types";
 import { db } from "@/services/db";
+import { api } from "@/services/api";
 import { generateId } from "@/utils";
 
 interface ProjectSlice {
@@ -13,6 +14,7 @@ interface ProjectSlice {
   setCurrentProject: (id: string | null) => void;
   getCurrentProject: () => Project | undefined;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  upsertProject: (project: Project) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectSlice>((set, get) => ({
@@ -22,8 +24,14 @@ export const useProjectStore = create<ProjectSlice>((set, get) => ({
 
   async loadProjects() {
     set({ loading: true });
-    const projects = await db.getAllProjects();
-    set({ projects, loading: false });
+    try {
+      const projects = await api.listProjects();
+      await Promise.all(projects.map((project) => db.saveProject(_mergeLocalPlayback(project, get().projects))));
+      set({ projects: projects.map((project) => _mergeLocalPlayback(project, get().projects)), loading: false });
+    } catch {
+      const projects = await db.getAllProjects();
+      set({ projects, loading: false });
+    }
   },
 
   async createProject(name: string) {
@@ -43,6 +51,11 @@ export const useProjectStore = create<ProjectSlice>((set, get) => ({
   },
 
   async deleteProject(id: string) {
+    try {
+      await api.deleteProject(id);
+    } catch {
+      // Local-only fallback projects can still be removed from IndexedDB.
+    }
     await db.deleteProject(id);
     set((s) => ({
       projects: s.projects.filter((p) => p.id !== id),
@@ -68,4 +81,23 @@ export const useProjectStore = create<ProjectSlice>((set, get) => ({
     const project = get().projects.find((p) => p.id === id);
     if (project) await db.saveProject(project);
   },
+
+  async upsertProject(project) {
+    await db.saveProject(project);
+    set((s) => ({
+      projects: [project, ...s.projects.filter((p) => p.id !== project.id)],
+    }));
+  },
 }));
+
+function _mergeLocalPlayback(project: Project, previous: Project[]): Project {
+  const local = previous.find((item) => item.id === project.id);
+  if (!local?.sourceVideo?.objectURL || !project.sourceVideo) return project;
+  return {
+    ...project,
+    sourceVideo: {
+      ...project.sourceVideo,
+      objectURL: local.sourceVideo.objectURL,
+    },
+  };
+}

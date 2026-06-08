@@ -48,6 +48,10 @@ exports_abs = settings.exports_dir.resolve()
 exports_abs.mkdir(parents=True, exist_ok=True)
 app.mount("/storage/exports", StaticFiles(directory=str(exports_abs)), name="exports")
 
+uploads_abs = settings.uploads_dir.resolve()
+uploads_abs.mkdir(parents=True, exist_ok=True)
+app.mount("/storage/uploads", StaticFiles(directory=str(uploads_abs)), name="uploads")
+
 
 @app.get("/health")
 async def health():

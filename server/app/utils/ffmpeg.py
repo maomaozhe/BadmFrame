@@ -117,6 +117,7 @@ async def run_concat_export(
     video_path: Path,
     ranges: list[tuple[float, float]],
     output_path: Path,
+    preset: str = "auto",
 ) -> None:
     """Export multiple source ranges and concatenate them into one MP4.
 
@@ -148,12 +149,7 @@ async def run_concat_export(
                 str(video_path),
                 "-t",
                 str(duration),
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "23",
+                *select_concat_video_encoder(preset),
                 "-c:a",
                 "aac",
                 "-movflags",
@@ -200,6 +196,30 @@ async def run_concat_export(
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
             raise RuntimeError(f"Concat export failed: {stderr.decode()}")
+
+
+def select_concat_video_encoder(preset: str = "auto") -> list[str]:
+    if preset == "fast_copy":
+        return ["-c:v", "copy"]
+    if preset == "auto" and _encoder_available("h264_nvenc"):
+        return ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
+    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23"]
+
+
+def _encoder_available(encoder: str) -> bool:
+    ffmpeg = _resolve_binary(settings.ffmpeg_path)
+    try:
+        proc = subprocess.run(
+            [ffmpeg, "-hide_banner", "-encoders"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+    except Exception:
+        return False
+    return encoder in proc.stdout
 
 
 def _resolve_binary(configured: str) -> str:

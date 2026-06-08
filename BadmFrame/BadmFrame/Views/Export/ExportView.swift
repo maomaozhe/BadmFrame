@@ -60,15 +60,26 @@ struct ExportView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                startBatchExport()
-            } label: {
-                Text(isExporting ? "导出中..." : "导出 \(selectedClipIDs.count) 个片段")
-                    .frame(maxWidth: .infinity)
+            VStack(spacing: 8) {
+                Button {
+                    startExport(project.clips.sorted(by: { $0.startTimeSec < $1.startTimeSec }))
+                } label: {
+                    Text(isExporting ? "导出中..." : "一键导出全部片段")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(project.clips.isEmpty || isExporting)
+
+                Button {
+                    startBatchExport()
+                } label: {
+                    Text(isExporting ? "导出中..." : "导出 \(selectedClipIDs.count) 个片段")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(selectedClipIDs.isEmpty || isExporting)
             }
-            .buttonStyle(.borderedProminent)
             .padding()
-            .disabled(selectedClipIDs.isEmpty || isExporting)
         }
     }
 
@@ -110,9 +121,13 @@ struct ExportView: View {
     }
 
     func startBatchExport() {
-        isExporting = true
         let selected = project.clips.filter { selectedClipIDs.contains(clipSelectionID($0)) }
+        startExport(selected)
+    }
 
+    func startExport(_ selected: [Clip]) {
+        guard !selected.isEmpty else { return }
+        isExporting = true
         Task {
             var results: [(clip: Clip, success: Bool, path: String?)] = []
             for clip in selected {

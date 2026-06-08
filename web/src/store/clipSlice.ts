@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AutoClipSegment, Clip, ClipExportStatus } from "@/types";
 import { useProjectStore } from "./projectSlice";
+import { api } from "@/services/api";
 import { generateId } from "@/utils";
 
 interface ClipSlice {
@@ -31,6 +32,15 @@ export const useClipStore = create<ClipSlice>(() => ({
       createdAt: new Date().toISOString(),
     };
     updateProject(currentProjectId, { clips: [...project.clips, clip] });
+    api.createClip(currentProjectId, clip)
+      .then((saved) => {
+        const latest = useProjectStore.getState().projects.find((p) => p.id === currentProjectId);
+        if (!latest) return;
+        updateProject(currentProjectId, {
+          clips: latest.clips.map((c) => (c.id === clip.id ? saved : c)),
+        });
+      })
+      .catch(() => {});
   },
 
   createClipFromMarker: (markerTimestamp, duration) => {
@@ -52,6 +62,15 @@ export const useClipStore = create<ClipSlice>(() => ({
       createdAt: new Date().toISOString(),
     };
     updateProject(currentProjectId, { clips: [...project.clips, clip] });
+    api.createClip(currentProjectId, clip)
+      .then((saved) => {
+        const latest = useProjectStore.getState().projects.find((p) => p.id === currentProjectId);
+        if (!latest) return;
+        updateProject(currentProjectId, {
+          clips: latest.clips.map((c) => (c.id === clip.id ? saved : c)),
+        });
+      })
+      .catch(() => {});
   },
 
   createClipsFromAutoSegments: (segments) => {
@@ -86,6 +105,7 @@ export const useClipStore = create<ClipSlice>(() => ({
     updateProject(currentProjectId, {
       clips: project.clips.filter((c) => c.id !== clipId),
     });
+    api.deleteClip(currentProjectId, clipId).catch(() => {});
   },
 
   updateClip: (clipId, updates) => {
@@ -98,6 +118,7 @@ export const useClipStore = create<ClipSlice>(() => ({
         c.id === clipId ? { ...c, ...updates } : c
       ),
     });
+    api.updateClip(currentProjectId, clipId, updates).catch(() => {});
   },
 
   updateExportStatus: (clipId, status, filePath) => {

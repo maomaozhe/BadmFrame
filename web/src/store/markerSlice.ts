@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Marker, MarkerColor } from "@/types";
 import { useProjectStore } from "./projectSlice";
-import { db } from "@/services/db";
+import { api } from "@/services/api";
 import { generateId } from "@/utils";
 
 interface MarkerSlice {
@@ -27,6 +27,15 @@ export const useMarkerStore = create<MarkerSlice>(() => ({
     };
     const updated = { markers: [...project.markers, marker] };
     updateProject(currentProjectId, updated);
+    api.createMarker(currentProjectId, { timestampSec, label, color })
+      .then((saved) => {
+        const latest = useProjectStore.getState().projects.find((p) => p.id === currentProjectId);
+        if (!latest) return;
+        updateProject(currentProjectId, {
+          markers: latest.markers.map((m) => (m.id === marker.id ? saved : m)),
+        });
+      })
+      .catch(() => {});
   },
 
   deleteMarker: (markerId) => {
@@ -37,6 +46,7 @@ export const useMarkerStore = create<MarkerSlice>(() => ({
     updateProject(currentProjectId, {
       markers: project.markers.filter((m) => m.id !== markerId),
     });
+    api.deleteMarker(currentProjectId, markerId).catch(() => {});
   },
 
   updateMarker: (markerId, updates) => {
@@ -49,6 +59,7 @@ export const useMarkerStore = create<MarkerSlice>(() => ({
         m.id === markerId ? { ...m, ...updates } : m
       ),
     });
+    api.updateMarker(currentProjectId, markerId, updates).catch(() => {});
   },
 
   getMarkers: () => {

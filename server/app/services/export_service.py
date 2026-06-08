@@ -42,7 +42,7 @@ async def cancel_export(clip: Clip, db: AsyncSession) -> None:
     await db.commit()
 
 
-async def export_clip_sequence(clips: list[Clip], project_id: str) -> Path:
+async def export_clip_sequence(clips: list[Clip], project_id: str, preset: str = "auto") -> Path:
     if not clips:
         raise ValueError("No clips selected")
     project = clips[0].project
@@ -58,5 +58,5 @@ async def export_clip_sequence(clips: list[Clip], project_id: str) -> Path:
     out_dir = settings.exports_dir / project_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "auto_dead_time_edit.mp4"
-    await run_concat_export(video_path, ranges, out_path)
+    await run_concat_export(video_path, ranges, out_path, preset=preset)
     return out_path

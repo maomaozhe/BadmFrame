@@ -4,6 +4,7 @@ import json
 import math
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 from array import array
 from dataclasses import asdict, dataclass
@@ -162,13 +163,21 @@ def extract_motion_features(video_path: Path, duration_sec: float, window_sec: f
 
 
 def _extract_ffmpeg_features(video_path: Path, duration_sec: float, window_sec: float) -> list[FeatureWindow]:
-    motion_scores = _extract_frame_motion_scores(video_path, duration_sec, window_sec)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        motion_future = pool.submit(_extract_frame_motion_scores, video_path, duration_sec, window_sec)
+        audio_future = (
+            pool.submit(_extract_audio_scores, video_path, duration_sec, window_sec)
+            if settings.analysis_extract_audio
+            else None
+        )
+        motion_scores = motion_future.result()
+        try:
+            audio_scores = audio_future.result() if audio_future is not None else []
+        except Exception:
+            audio_scores = []
+
     if not motion_scores:
         return []
-    try:
-        audio_scores = _extract_audio_scores(video_path, duration_sec, window_sec)
-    except Exception:
-        audio_scores = []
 
     total = max(1, math.ceil(duration_sec / window_sec))
     windows: list[FeatureWindow] = []
@@ -190,13 +199,16 @@ def _extract_frame_motion_scores(
     video_path: Path,
     duration_sec: float,
     window_sec: float,
-    fps: int = 3,
-    width: int = 96,
-    height: int = 54,
+    fps: int | None = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> list[float]:
     ffmpeg = _resolve_ffmpeg()
     if not ffmpeg:
         return []
+    fps = fps or settings.analysis_fps
+    width = width or settings.analysis_width
+    height = height or settings.analysis_height
 
     cmd = [
         ffmpeg,

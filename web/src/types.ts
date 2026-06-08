@@ -1,5 +1,6 @@
 export interface Project {
   id: string;
+  serverProjectId?: string;
   name: string;
   sourceVideo: SourceVideo | null;
   markers: Marker[];
@@ -10,6 +11,7 @@ export interface Project {
 
 export interface SourceVideo {
   id: string;
+  serverVideoId?: string;
   fileName: string;
   filePath: string;
   durationSec: number;
@@ -70,6 +72,7 @@ export interface AutoClipSegment {
 }
 
 export interface AutoClipDraft {
+  taskId?: string;
   status: "idle" | "running" | "completed" | "failed";
   mode: AutoClipMode;
   progress: number;
@@ -79,3 +82,14 @@ export interface AutoClipDraft {
 }
 
 export type EditorTab = "markers" | "clips" | "auto" | "info";
+
+export interface ExportJob {
+  taskId: string;
+  status: "queued" | "running" | "completed" | "failed";
+  mode: "separate" | "merged";
+  preset: "auto" | "fast_copy" | "compatible";
+  results: Array<{ id: string; status: string; path?: string; error?: string }>;
+  error?: string | null;
+  createdAt?: string;
+  completedAt?: string | null;
+}
