@@ -12,6 +12,7 @@ export interface Project {
 export interface SourceVideo {
   id: string;
   serverVideoId?: string;
+  projectId?: string | null;
   fileName: string;
   filePath: string;
   durationSec: number;
@@ -115,7 +116,9 @@ export interface RallyAnalysisResult {
   error?: string;
 }
 
-export type EditorTab = "markers" | "clips" | "auto" | "info";
+export type EditorTab = "markers" | "clips" | "rallies" | "info";
+
+export type ExportSortMode = "position" | "duration";
 
 export interface ExportJob {
   taskId: string;

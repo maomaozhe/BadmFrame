@@ -1,15 +1,24 @@
 {
   "window": {
-    "window_sec": 0.8,
-    "step_sec": 0.25,
+    "window_sec": 0.6,
+    "step_sec": 0.15,
     "min_visible_ratio": 0.2,
-    "min_motion_px_sec": 220.0,
-    "min_spread_px": 260.0,
-    "merge_gap_sec": 1.0,
+    "min_motion_px_sec": 350.0,
+    "min_spread_px": 400.0,
+    "merge_gap_sec": 0.8,
     "min_rally_duration_sec": 2.0,
-    "pre_buffer_sec": 0.25,
+    "pre_buffer_sec": 0.0,
     "post_buffer_sec": 0.0,
     "start_sec": 0.0,
-    "end_sec": null
+    "end_sec": 250.0
+  },
+  "refiner": {
+    "local_window_sec": 0.3,
+    "local_step_sec": 0.1,
+    "min_visible_ratio": 0.20,
+    "min_motion_px_sec": 280.0,
+    "min_spread_px": 300.0,
+    "pre_match_grace_sec": 15.0,
+    "pre_match_max_duration_sec": 5.0
   }
 }

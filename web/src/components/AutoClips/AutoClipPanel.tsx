@@ -85,6 +85,12 @@ export function AutoClipPanel({ draft, duration, onRun, onUpdateSegment, onApply
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
               <div className="h-full bg-primary transition-all" style={{ width: `${displayProgress * 100}%` }} />
             </div>
+            <button
+              onClick={onCancel}
+              className="mt-1 inline-flex h-7 items-center gap-1 rounded-md border border-destructive/30 px-2 text-xs text-destructive hover:bg-destructive/10"
+            >
+              取消分析
+            </button>
           </div>
         )}
         {draft?.status === "failed" && (

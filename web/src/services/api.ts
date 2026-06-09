@@ -55,6 +55,7 @@ type ApiSourceVideo = {
   is_vfr: boolean;
   file_size: number;
   import_date: string;
+  project_id?: string | null;
 };
 
 type ApiMarker = {
@@ -124,16 +125,28 @@ export const api = {
     return (await request<ApiProject[]>("/projects")).map(toProject);
   },
 
-  async uploadVideo(file: File): Promise<SourceVideo> {
+  async uploadVideo(file: File, projectId?: string): Promise<SourceVideo> {
     const data = new FormData();
     data.append("file", file);
-    return toSourceVideo(await request<ApiSourceVideo>("/videos/upload", { method: "POST", body: data }));
+    const qs = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    return toSourceVideo(await request<ApiSourceVideo>(`/videos/upload${qs}`, { method: "POST", body: data }));
   },
 
   async createProject(name: string, videoId?: string): Promise<Project> {
     return toProject(await request<ApiProject>("/projects", {
       method: "POST",
       body: JSON.stringify({ name, video_id: videoId }),
+    }));
+  },
+
+  async getProject(projectId: string): Promise<Project> {
+    return toProject(await request<ApiProject>(`/projects/${projectId}`));
+  },
+
+  async updateProject(projectId: string, updates: { name?: string }): Promise<Project> {
+    return toProject(await request<ApiProject>(`/projects/${projectId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
     }));
   },
 
@@ -208,6 +221,10 @@ export const api = {
     }
   },
 
+  async cancelAnalysis(videoId: string, taskId: string): Promise<void> {
+    await request<void>(`/videos/${videoId}/analysis/${taskId}`, { method: "DELETE" });
+  },
+
   async applyAutoClips(projectId: string, taskId: string): Promise<{ created_clip_ids: string[]; clips_created: number }> {
     return request(`/projects/${projectId}/auto-clips/apply`, {
       method: "POST",
@@ -248,6 +265,7 @@ function toSourceVideo(v: ApiSourceVideo): SourceVideo {
   return {
     id: v.id,
     serverVideoId: v.id,
+    projectId: v.project_id,
     fileName: v.file_name,
     filePath: v.file_path,
     durationSec: v.duration_sec,

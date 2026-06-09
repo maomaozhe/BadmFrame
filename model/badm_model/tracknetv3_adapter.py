@@ -77,6 +77,7 @@ def run_tracknetv3_predict(
     eval_mode: str = "nonoverlap",
     skip_inpaintnet: bool = False,
     batch_size: int = 1,
+    max_sample_num: int = 400,
 ) -> TrackNetV3Run:
     _validate_tracknet_inputs(video_path=video_path, config=config)
 
@@ -99,6 +100,7 @@ def run_tracknetv3_predict(
         cmd.extend(["--inpaintnet_file", str(config.inpaintnet_checkpoint)])
     if large_video:
         cmd.append("--large_video")
+    cmd.extend(["--max_sample_num", str(max_sample_num)])
 
     completed = subprocess.run(
         cmd,

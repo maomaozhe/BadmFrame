@@ -50,8 +50,9 @@ export function ImportDialog({ open, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      const uploaded = await api.uploadVideo(file);
-      const project = await api.createProject(projectName.trim(), uploaded.serverVideoId || uploaded.id);
+      // Create the project first, then upload the video directly into it.
+      const project = await api.createProject(projectName.trim());
+      const uploaded = await api.uploadVideo(file, project.id);
       const withPlayback = {
         ...project,
         sourceVideo: project.sourceVideo

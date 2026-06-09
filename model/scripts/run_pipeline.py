@@ -10,9 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "model"))
 
+from typing import Sequence
+
 from badm_model.contracts import ShuttlePoint
 from badm_model.io import ensure_dir, write_json
 from badm_model.rally_refiner import RallyRefinerConfig, refine_candidates
+from badm_model.rally_state_machine import RallyCandidate
 from badm_model.rally_tuner import WindowSegmentationConfig, _extract_windows, _generate_candidates_from_windows
 from badm_model.tracknetv3_adapter import TrackNetV3Config, convert_tracknet_csv, run_tracknetv3_predict
 from badm_model.trajectory_cleaner import clean_trajectory
@@ -35,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--batch-size", type=int, default=1, help="TrackNetV3 inference batch size.")
     parser.add_argument("--eval-mode", default="nonoverlap", choices=["nonoverlap", "average", "weight"])
     parser.add_argument("--skip-inpaintnet", action="store_true", help="Do not load InpaintNet during inference.")
+    parser.add_argument("--max-sample-num", type=int, default=400, help="Max frames for median image generation (lower = less memory).")
     parser.add_argument("--progress-file", help="Write progress updates to this JSON file.")
     parser.add_argument("--fps", type=float, help="Override fps (for dry tests).")
     parser.add_argument("--frame-width", type=int, help="Override frame width (for dry tests).")
@@ -71,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
                 batch_size=args.batch_size,
                 eval_mode=args.eval_mode,
                 skip_inpaintnet=args.skip_inpaintnet,
+                max_sample_num=args.max_sample_num,
             )
             csv_path = run.csv_path
             if run.returncode != 0:
@@ -119,6 +124,13 @@ def main(argv: list[str] | None = None) -> int:
         # ── Stage 6: Write output ──────────────────────────────────
         _report(args.progress_file, "writing", 0.90, "Writing rally_candidates.json...")
 
+        # Compute real trajectory stats from cleaned shuttle points for each candidate
+        points = cleaned.points
+
+        def _compute_stats_for(candidate) -> dict:
+            seg_pts = [p for p in points if candidate.startSec <= p.timeSec <= candidate.endSec]
+            return _compute_trajectory_stats(seg_pts)
+
         rally_output = {
             "source": "tracknetv3+pipeline",
             "sourceVideo": str(video_path),
@@ -130,11 +142,11 @@ def main(argv: list[str] | None = None) -> int:
                     "id": c.id,
                     "startSec": c.startSec,
                     "endSec": c.endSec,
-                    "confidence": c.confidence,
+                    "confidence": round(c.confidence, 4),
                     "startReason": c.startReason,
                     "endReason": c.endReason,
                     "reviewState": c.reviewState,
-                    "trajectoryStats": c.trajectoryStats,
+                    "trajectoryStats": _compute_stats_for(c),
                 }
                 for c in candidates
             ],
@@ -157,6 +169,168 @@ def main(argv: list[str] | None = None) -> int:
         _write_metadata(output_dir / "run_metadata.json", "failed", started_at, args, error=str(error))
         print(str(error), file=sys.stderr)
         return 1
+
+
+# ── trajectory stats ─────────────────────────────────────────────────
+
+
+def _compute_trajectory_stats(points: Sequence[ShuttlePoint]) -> dict:
+    """Compute real trajectory statistics for a candidate interval."""
+    visible_pts = [p for p in points if p.visible]
+    total = len(points)
+    if total == 0:
+        return {"visibleRatio": 0.0, "maxGapSec": 0.0, "directionChanges": 0, "meanSpeedPxSec": 0.0}
+
+    visible_ratio = round(len(visible_pts) / total, 4)
+    max_gap_sec = round(_longest_gap_sec(points), 4)
+    dir_changes = _count_direction_changes(visible_pts)
+    mean_speed = round(_mean_speed_px_sec(visible_pts), 1)
+    return {
+        "visibleRatio": visible_ratio,
+        "maxGapSec": max_gap_sec,
+        "directionChanges": dir_changes,
+        "meanSpeedPxSec": mean_speed,
+    }
+
+
+def _longest_gap_sec(points: Sequence[ShuttlePoint]) -> float:
+    max_gap = 0.0
+    gap_start: float | None = None
+    for p in points:
+        if not p.visible:
+            if gap_start is None:
+                gap_start = p.timeSec
+        else:
+            if gap_start is not None:
+                max_gap = max(max_gap, p.timeSec - gap_start)
+                gap_start = None
+    return max_gap
+
+
+def _count_direction_changes(visible_points: Sequence[ShuttlePoint]) -> int:
+    changes = 0
+    for i in range(1, len(visible_points) - 1):
+        dx1 = visible_points[i].x - visible_points[i - 1].x
+        dy1 = visible_points[i].y - visible_points[i - 1].y
+        dx2 = visible_points[i + 1].x - visible_points[i].x
+        dy2 = visible_points[i + 1].y - visible_points[i].y
+        if dx1 * dx2 + dy1 * dy2 < 0:
+            changes += 1
+    return changes
+
+
+def _mean_speed_px_sec(visible_points: Sequence[ShuttlePoint]) -> float:
+    if len(visible_points) < 2:
+        return 0.0
+    speeds: list[float] = []
+    for i in range(1, len(visible_points)):
+        dx = visible_points[i].x - visible_points[i - 1].x
+        dy = visible_points[i].y - visible_points[i - 1].y
+        dt = visible_points[i].timeSec - visible_points[i - 1].timeSec
+        if dt > 0:
+            speeds.append((dx**2 + dy**2) ** 0.5 / dt)
+    return sum(speeds) / len(speeds) if speeds else 0.0
+
+
+def _tighten_by_visibility(
+    points: Sequence[ShuttlePoint],
+    candidates: list,
+    fps: float,
+) -> list:
+    """Tighten candidate boundaries to the first/last visible shuttle point.
+
+    For each candidate, scan from the boundary regions to find where the
+    shuttle trajectory has a meaningful gap or becomes invisible. This
+    trims dead air at the edges that the window detector included.
+
+    Uses a 2-pass approach: first looks for the last/first visible point in
+    the boundary region, then falls back to looking for a significant gap
+    (>0.5s) of invisible points near the edges.
+    """
+    START_GRACE_SEC = 0.5  # Buffer before first visible point
+    END_GRACE_SEC = 0.8    # Buffer after last visible point (generous to preserve recall)
+    MIN_TIGHTEN_SEC = 0.4   # Minimum change to apply tightening
+    BOUNDARY_FRAC = 0.3     # Fraction of candidate to search for boundaries
+
+    if not points:
+        return candidates
+
+    tightened = []
+    for c in candidates:
+        seg_pts = [p for p in points if c.startSec <= p.timeSec <= c.endSec]
+        if len(seg_pts) < 3:
+            tightened.append(c)
+            continue
+
+        dur = c.endSec - c.startSec
+        boundary_sec = dur * BOUNDARY_FRAC
+
+        # Find first visible point within the start boundary region
+        start_region = [p for p in seg_pts if p.timeSec <= c.startSec + boundary_sec]
+        first_vis = next((p for p in start_region if p.visible), None)
+
+        # Find last visible point within the end boundary region
+        end_region = [p for p in seg_pts if p.timeSec >= c.endSec - boundary_sec]
+        last_vis = next((p for p in reversed(end_region) if p.visible), None)
+
+        new_start = c.startSec
+        new_end = c.endSec
+        start_reason = list(c.startReason)
+        end_reason = list(c.endReason)
+        changed = False
+
+        # Tighten start: move forward to first visible point minus small buffer
+        if first_vis is not None and first_vis.timeSec > c.startSec + MIN_TIGHTEN_SEC:
+            new_start = round(first_vis.timeSec - START_GRACE_SEC, 3)
+            if new_start < c.startSec:
+                new_start = c.startSec
+            if new_start > c.startSec + MIN_TIGHTEN_SEC:
+                changed = True
+                start_reason.append("visibility_tightened_start")
+
+        # Tighten end: move backward to last visible point plus small buffer
+        if last_vis is not None and last_vis.timeSec < c.endSec - MIN_TIGHTEN_SEC:
+            new_end = round(last_vis.timeSec + END_GRACE_SEC, 3)
+            if new_end > c.endSec:
+                new_end = c.endSec
+            if new_end < c.endSec - MIN_TIGHTEN_SEC:
+                changed = True
+                end_reason.append("visibility_tightened_end")
+
+        # Fallback: look for significant invisible gap near edges
+        if not changed:
+            # Near start: find first invisible gap >= 0.5s
+            gap_start = None
+            for p in start_region:
+                if not p.visible:
+                    if gap_start is None:
+                        gap_start = p.timeSec
+                else:
+                    if gap_start is not None and p.timeSec - gap_start >= 0.5:
+                        new_start = round(gap_start + 0.5, 3)
+                        if new_start > c.startSec + MIN_TIGHTEN_SEC:
+                            changed = True
+                            start_reason.append("gap_tightened_start")
+                        break
+                    gap_start = None
+
+        if not changed or new_start >= new_end:
+            tightened.append(c)
+            continue
+
+        tightened.append(
+            RallyCandidate(
+                id=c.id,
+                startSec=new_start,
+                endSec=new_end,
+                confidence=c.confidence,
+                startReason=start_reason,
+                endReason=end_reason,
+                reviewState=c.reviewState,
+                trajectoryStats=c.trajectoryStats,
+            )
+        )
+    return tightened
 
 
 # ── helpers ───────────────────────────────────────────────────────────

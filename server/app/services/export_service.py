@@ -28,7 +28,7 @@ async def export_clip(clip: Clip, project_id: str, db: AsyncSession) -> None:
     await run_export(video_path, clip.start_time_sec, clip.end_time_sec, out_path)
 
     clip.export_status = "completed"
-    clip.exported_file_path = str(out_path)
+    clip.exported_file_path = str(out_path.resolve())
     await db.commit()
 
 
@@ -59,4 +59,4 @@ async def export_clip_sequence(clips: list[Clip], project_id: str, preset: str =
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "auto_dead_time_edit.mp4"
     await run_concat_export(video_path, ranges, out_path, preset=preset)
-    return out_path
+    return out_path.resolve()

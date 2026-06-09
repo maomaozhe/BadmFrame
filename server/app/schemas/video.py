@@ -19,4 +19,5 @@ class SourceVideoRead(SourceVideoBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    project_id: str | None = None
     import_date: datetime

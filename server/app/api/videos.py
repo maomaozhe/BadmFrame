@@ -19,7 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/upload", response_model=SourceVideoRead, status_code=201)
-async def upload_video(file: UploadFile, db: AsyncSession = Depends(get_db)):
+async def upload_video(
+    file: UploadFile,
+    project_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(400, "File must be a video")
     try:
@@ -32,12 +36,21 @@ async def upload_video(file: UploadFile, db: AsyncSession = Depends(get_db)):
         video = await create_source_video(dest, dest.name, file_size, content_sha256)
     except Exception as e:
         dest.unlink(missing_ok=True)
-        logger.error("Failed to extract video metadata: %s", e)
+        logger.error(
+            "Failed to extract video metadata: %s: %s",
+            type(e).__name__,
+            str(e) or repr(e),
+        )
         raise HTTPException(400, f"Unplayable video: {e}")
 
-    project = Project(name=dest.name.rsplit(".", 1)[0])
-    db.add(project)
-    await db.flush()
+    if project_id:
+        project = await db.get(Project, project_id)
+        if not project:
+            raise HTTPException(404, "Project not found")
+    else:
+        project = Project(name=dest.name.rsplit(".", 1)[0])
+        db.add(project)
+        await db.flush()
     video.project_id = project.id
     db.add(video)
     try:

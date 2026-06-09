@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +10,15 @@ from pathlib import Path
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def _run_subprocess(cmd: list[str], timeout: int = 120) -> subprocess.CompletedProcess:
+    """Run a subprocess via thread executor to avoid Windows SelectorEventLoop issues."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout),
+    )
 
 
 @dataclass
@@ -23,29 +33,47 @@ class VideoMetadata:
 
 async def _run_ffprobe(file_path: Path) -> dict:
     ffprobe = _resolve_binary(settings.ffprobe_path)
-    cmd = [
-        ffprobe,
-        "-v", "quiet",
-        "-print_format", "json",
-        "-show_format",
-        "-show_streams",
-        str(file_path),
-    ]
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
-    return json.loads(stdout)
+    cmd = [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", str(file_path)]
+    result = await _run_subprocess(cmd, timeout=30)
+    if result.returncode != 0:
+        err_text = result.stderr.strip() or "(no stderr output)"
+        raise RuntimeError(
+            f"ffprobe exited with code {result.returncode}: {err_text}"
+        )
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"ffprobe produced invalid JSON (stdout={result.stdout[:200]!r}): {e}"
+        ) from e
 
 
 async def extract_metadata(file_path: Path) -> VideoMetadata:
+    ffprobe_error: Exception | None = None
     try:
         data = await _run_ffprobe(file_path)
-    except FileNotFoundError:
-        return _extract_metadata_with_opencv(file_path)
+    except Exception as e:
+        ffprobe_error = e
+        logger.warning(
+            "ffprobe failed (%s: %s), falling back to OpenCV",
+            type(e).__name__, e,
+        )
 
+    if ffprobe_error is None:
+        # ffprobe succeeded — parse its JSON output
+        return _parse_ffprobe_output(data)
+
+    # ffprobe failed — fall back to OpenCV
+    try:
+        return _extract_metadata_with_opencv(file_path)
+    except Exception as cv_error:
+        raise RuntimeError(
+            f"Unable to read video metadata: ffprobe ({type(ffprobe_error).__name__}: {ffprobe_error}); "
+            f"OpenCV ({type(cv_error).__name__}: {cv_error})"
+        ) from cv_error
+
+
+def _parse_ffprobe_output(data: dict) -> VideoMetadata:
     meta = VideoMetadata()
 
     video_stream = None
@@ -113,12 +141,9 @@ async def generate_thumbnail(video_path: Path, time_sec: float, output_path: Pat
         "-q:v", "2",
         str(output_path),
     ]
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        logger.warning("Thumbnail generation failed at %.1fs: %s", time_sec, stderr.decode())
+    result = await _run_subprocess(cmd, timeout=30)
+    if result.returncode != 0:
+        logger.warning("Thumbnail generation failed at %.1fs: %s", time_sec, result.stderr.strip())
         return
 
 
@@ -137,12 +162,9 @@ async def run_export(video_path: Path, start_sec: float, end_sec: float, output_
         "-avoid_negative_ts", "make_zero",
         str(output_path),
     ]
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"Export failed: {stderr.decode()}")
+    result = await _run_subprocess(cmd, timeout=120)
+    if result.returncode != 0:
+        raise RuntimeError(f"Export failed: {result.stderr.strip()}")
 
 
 async def run_concat_export(
@@ -154,7 +176,7 @@ async def run_concat_export(
     """Export multiple source ranges and concatenate them into one MP4.
 
     This favors compatibility over speed by encoding normalized intermediate
-    MP4 files before concat. It is the server-side path for “remove dead time”
+    MP4 files before concat. It is the server-side path for "remove dead time"
     exports where many keep segments become one continuous recap.
     """
     if not ranges:
@@ -188,14 +210,9 @@ async def run_concat_export(
                 "+faststart",
                 str(part_path),
             ]
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                raise RuntimeError(f"Concat part export failed: {stderr.decode()}")
+            result = await _run_subprocess(cmd, timeout=120)
+            if result.returncode != 0:
+                raise RuntimeError(f"Concat part export failed: {result.stderr.strip()}")
 
         if not part_paths:
             raise ValueError("No valid ranges to export")
@@ -220,14 +237,9 @@ async def run_concat_export(
             "+faststart",
             str(output_path),
         ]
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            raise RuntimeError(f"Concat export failed: {stderr.decode()}")
+        result = await _run_subprocess(cmd, timeout=120)
+        if result.returncode != 0:
+            raise RuntimeError(f"Concat export failed: {result.stderr.strip()}")
 
 
 def select_concat_video_encoder(preset: str = "auto") -> list[str]:

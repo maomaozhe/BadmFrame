@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "BADMFRAME_", "env_file": ".env", "extra": "ignore"}
+    model_config = {"env_prefix": "BADMFRAME_", "env_file": str(Path(__file__).resolve().parent.parent / ".env"), "extra": "ignore"}
 
     database_url: str = "sqlite+aiosqlite:///./storage/badmframe.db"
     redis_url: str = "redis://localhost:6379/0"

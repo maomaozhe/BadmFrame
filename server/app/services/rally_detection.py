@@ -52,12 +52,13 @@ def _run_rally_detection_job(
         },
     )
     try:
-        run_rally_detection(
+        result = run_rally_detection(
             task_id=task_id,
             video_id=video_id,
             project_id=project_id,
             video_path=video_path,
         )
+        _sync_rally_job_db(task_id, result["status"], result.get("candidate_count", 0), result.get("error"))
     except Exception as error:
         result = {
             "task_id": task_id,
@@ -79,6 +80,7 @@ def _run_rally_detection_job(
                 "message": str(error),
             },
         )
+        _sync_rally_job_db(task_id, "failed", 0, str(error))
 
 
 def run_rally_detection(
@@ -116,6 +118,7 @@ def run_rally_detection(
         "--large-video",
         "--batch-size", str(settings.tracknet_batch_size),
         "--eval-mode", settings.tracknet_eval_mode,
+        "--max-sample-num", str(settings.tracknet_max_sample_num),
     ]
     if settings.tracknet_skip_inpaintnet:
         cmd.append("--skip-inpaintnet")
@@ -125,16 +128,47 @@ def run_rally_detection(
         env["PYTORCH_CUDA_ALLOC_CONF"] = settings.tracknet_cuda_alloc_conf
     env.setdefault("CUDA_MODULE_LOADING", "LAZY")
 
-    completed = subprocess.run(
+    # Use Popen so we can heartbeat progress during long-running GPU inference.
+    proc = subprocess.Popen(
         cmd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env,
-        timeout=3600,  # 1 hour — TrackNetV3 inference is slow
     )
+    import threading
 
-    if completed.returncode != 0:
+    _heartbeat_stop = threading.Event()
+
+    def _heartbeat_progress():
+        """Write a liveness update every 30 s so the frontend doesn't think we stalled."""
+        tick = 0
+        while not _heartbeat_stop.wait(30):
+            if proc.poll() is not None:
+                break
+            tick += 1
+            fake_progress = min(0.02 + tick * 0.005, 0.65)
+            save_rally_progress(
+                task_id,
+                {
+                    "stage": "tracknet",
+                    "progress": round(fake_progress, 4),
+                    "message": f"TrackNetV3 inferring... ({tick * 30}s)",
+                },
+            )
+
+    heartbeat_thread = threading.Thread(target=_heartbeat_progress, daemon=True)
+    heartbeat_thread.start()
+
+    try:
+        stdout, stderr = proc.communicate(timeout=3600)
+    finally:
+        _heartbeat_stop.set()
+        heartbeat_thread.join(timeout=5)
+
+    returncode = proc.returncode
+
+    if returncode != 0:
         result = {
             "task_id": task_id,
             "video_id": video_id,
@@ -143,7 +177,7 @@ def run_rally_detection(
             "progress": 1.0,
             "duration_sec": 0,
             "segments": [],
-            "error": completed.stderr.strip() or completed.stdout.strip() or "Pipeline failed",
+            "error": (stderr or "").strip() or (stdout or "").strip() or "Pipeline failed",
         }
         _save_task(task_id, result)
         return result
@@ -178,6 +212,21 @@ def run_rally_detection(
         for c in candidates
     ]
 
+    candidate_list = [
+        {
+            "id": c.get("id", f"rally-{i:03d}"),
+            "start_sec": float(c["startSec"]),
+            "end_sec": float(c["endSec"]),
+            "confidence": float(c.get("confidence", 0.8)),
+            "review_state": c.get("reviewState", "pending"),
+            "start_reason": c.get("startReason", []),
+            "end_reason": c.get("endReason", []),
+            "source": "model",
+            "trajectory_stats": _map_trajectory_stats(c.get("trajectoryStats")),
+        }
+        for i, c in enumerate(candidates, 1)
+    ]
+
     timeline = _with_cut_segments(keep_segments, duration_sec)
 
     result = {
@@ -188,6 +237,7 @@ def run_rally_detection(
         "progress": 1.0,
         "duration_sec": duration_sec,
         "segments": [s.model_dump() for s in timeline],
+        "candidates": candidate_list,
         "candidate_count": len(candidates),
         "error": None,
     }
@@ -307,3 +357,54 @@ def _with_cut_segments(
             )
         )
     return [s for s in timeline if s.end_sec > s.start_sec]
+
+
+def _map_trajectory_stats(stats: dict | None) -> dict | None:
+    """Map pipeline trajectoryStats to snake_case for the frontend schema."""
+    if not isinstance(stats, dict):
+        return None
+    return {
+        "visible_ratio": stats.get("visibleRatio"),
+        "max_gap_sec": stats.get("maxGapSec"),
+        "direction_changes": stats.get("directionChanges"),
+        "mean_speed_px_sec": stats.get("meanSpeedPxSec"),
+    }
+
+
+def _sync_rally_job_db(task_id: str, status: str, candidate_count: int, error: str | None) -> None:
+    """Sync RallyJob status to DB from a background thread."""
+    import asyncio
+    import logging
+
+    _log = logging.getLogger(__name__)
+
+    async def _update():
+        from datetime import datetime, timezone
+
+        from sqlalchemy import select
+        from app.database import async_session
+        from app.models.rally_job import RallyJob
+
+        async with async_session() as session:
+            result = await session.execute(select(RallyJob).where(RallyJob.task_id == task_id))
+            job = result.scalar_one_or_none()
+            if job is None:
+                _log.warning("RallyJob %s not found in DB", task_id)
+                return
+            job.status = status
+            job.progress = 1.0
+            job.candidate_count = candidate_count
+            job.error = error
+            if status in ("completed", "failed"):
+                job.completed_at = datetime.now(timezone.utc)
+            await session.commit()
+            _log.info("RallyJob %s synced to DB: status=%s", task_id, status)
+
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_update())
+        finally:
+            loop.close()
+    except Exception as exc:
+        _log.error("Failed to sync RallyJob %s to DB: %s", task_id, exc)

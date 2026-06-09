@@ -1,13 +1,15 @@
-import { Check, Clapperboard, Play, SkipForward, Trash2 } from "lucide-react";
+import { Check, Clapperboard, Download, Play, RotateCcw, SkipForward, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useClipStore } from "@/store/clipSlice";
 import { useRallyStore } from "@/store/rallySlice";
+import { useUIStore } from "@/store/uiSlice";
 import { useVideoStore } from "@/store/videoSlice";
 import { formatTimePrecise } from "@/utils";
 import type { RallyCandidate, RallyReviewState } from "@/types";
 
 interface Props {
   duration: number;
+  onRerunDetection: () => void;
 }
 
 const STATE_LABELS: Record<RallyReviewState, string> = {
@@ -17,7 +19,7 @@ const STATE_LABELS: Record<RallyReviewState, string> = {
   adjusted: "调整",
 };
 
-export function RallyReviewPanel({ duration }: Props) {
+export function RallyReviewPanel({ duration, onRerunDetection }: Props) {
   const status = useRallyStore((s) => s.status);
   const candidates = useRallyStore((s) => s.candidates);
   const selectedCandidateId = useRallyStore((s) => s.selectedCandidateId);
@@ -26,19 +28,53 @@ export function RallyReviewPanel({ duration }: Props) {
   const rejectCandidate = useRallyStore((s) => s.rejectCandidate);
   const updateCandidate = useRallyStore((s) => s.updateCandidate);
   const createClipsFromRallyCandidates = useClipStore((s) => s.createClipsFromRallyCandidates);
+  const setShowExport = useUIStore((s) => s.setShowExport);
   const seekTo = useVideoStore((s) => s.seekTo);
   const playRange = useVideoStore((s) => s.playRange);
 
   const selected = candidates.find((candidate) => candidate.id === selectedCandidateId) ?? candidates[0];
   const counts = countStates(candidates);
   const convertibleCount = candidates.filter(
-    (candidate) => candidate.reviewState === "accepted" || candidate.reviewState === "adjusted"
+    (candidate) => candidate.reviewState !== "rejected"
   ).length;
 
   if (status === "idle") {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        尚未提取候选回合。
+      <div className="p-4 text-sm text-muted-foreground space-y-3 text-center">
+        <p>尚未检测回合。</p>
+        <button
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+          onClick={onRerunDetection}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          开始检测
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "running") {
+    return (
+      <div className="p-4 text-sm text-muted-foreground space-y-3 text-center">
+        <p>正在检测回合，请稍候...</p>
+        <div className="mx-auto h-1.5 w-48 rounded-full bg-muted overflow-hidden">
+          <div className="h-full animate-pulse rounded-full bg-primary/60" style={{ width: "60%" }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <div className="p-4 text-sm space-y-3 text-center">
+        <p className="text-destructive">回合检测失败</p>
+        <button
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+          onClick={onRerunDetection}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          重新检测
+        </button>
       </div>
     );
   }
@@ -60,10 +96,30 @@ export function RallyReviewPanel({ duration }: Props) {
         <StatusPill label="确认" value={counts.accepted} />
         <StatusPill label="删除" value={counts.rejected} />
         <StatusPill label="调整" value={counts.adjusted} />
+        <span className="ml-auto text-xs text-muted-foreground">
+          可导出: {convertibleCount}
+        </span>
         <button
-          className="ml-auto inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent"
+          onClick={onRerunDetection}
+          title="重新检测"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          重新检测
+        </button>
+        <button
+          className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          onClick={() => setShowExport(true)}
+          disabled={convertibleCount === 0}
+        >
+          <Download className="h-3.5 w-3.5" />
+          导出回合 ({convertibleCount})
+        </button>
+        <button
+          className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
           onClick={() => createClipsFromRallyCandidates(candidates)}
           disabled={convertibleCount === 0}
+          title="将已确认回合保存为片段（导出时会自动完成此步骤）"
         >
           <Clapperboard className="h-3.5 w-3.5" />
           转换为片段

@@ -1,14 +1,19 @@
 import asyncio
+import io
 import json
 import logging
 import uuid
+import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.models.clip import Clip
 from app.models.job import ExportJob
@@ -87,10 +92,80 @@ async def list_project_exports(project_id: str, db: AsyncSession = Depends(get_d
     return [_export_job_read(job) for job in jobs.scalars()]
 
 
+def _resolve_export_path(raw: str) -> Path:
+    """Resolve an export result path to an absolute path.
+    New exports store absolute paths; legacy relative paths are resolved vs CWD."""
+    p = Path(raw)
+    if p.is_absolute():
+        return p
+    return p.resolve()
+
+
 @router.get("/{task_id}/download")
-async def download_export(task_id: str, clip_id: str):
-    """Redirect to download an exported clip file. Not implemented for inline serving."""
-    raise HTTPException(501, "Download via static file serving — see /storage/exports/")
+async def download_export(task_id: str, clip_id: str | None = None, db: AsyncSession = Depends(get_db)):
+    """Download exported file(s). The browser prompts the user for a save path."""
+    logger.info("Download requested: task_id=%s clip_id=%s", task_id, clip_id)
+
+    job = await _get_export_job(task_id, db)
+    if not job:
+        logger.warning("Download 404: task_id=%s not found", task_id)
+        raise HTTPException(404, "Export task not found")
+    if job.status != "completed":
+        logger.warning("Download 400: task_id=%s status=%s", task_id, job.status)
+        raise HTTPException(400, f"Export not completed (status: {job.status})")
+
+    results: list[dict] = json.loads(job.results_json or "[]")
+    logger.info("Download: task_id=%s raw_results=%s", task_id, job.results_json[:500])
+
+    results = [r for r in results if r.get("status") == "completed" and r.get("path")]
+    if not results:
+        logger.warning("Download 404: no completed results for task_id=%s", task_id)
+        raise HTTPException(404, "No completed export results found")
+
+    if clip_id:
+        match = next((r for r in results if r["id"] == clip_id), None)
+        if not match:
+            logger.warning("Download 404: clip_id=%s not in results for task_id=%s", clip_id, task_id)
+            raise HTTPException(404, f"Clip {clip_id} not found in export results")
+        file_path = _resolve_export_path(match["path"])
+        logger.info("Download: resolved path=%s exists=%s", file_path, file_path.exists())
+        if not file_path.exists():
+            logger.error("Download 404: file missing: %s", file_path)
+            raise HTTPException(404, f"Exported file not found on disk: {file_path}")
+        return FileResponse(
+            file_path,
+            media_type="video/mp4",
+            filename=file_path.name,
+        )
+
+    if job.mode == "merged":
+        file_path = _resolve_export_path(results[0]["path"])
+        logger.info("Download merged: path=%s exists=%s", file_path, file_path.exists())
+        if not file_path.exists():
+            logger.error("Download 404: merged file missing: %s", file_path)
+            raise HTTPException(404, f"Exported file not found on disk: {file_path}")
+        return FileResponse(
+            file_path,
+            media_type="video/mp4",
+            filename=file_path.name,
+        )
+
+    # Multiple separate files → zip
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for r in results:
+            fp = _resolve_export_path(r["path"])
+            if fp.exists():
+                zf.write(fp, fp.name)
+            else:
+                logger.warning("Download: skipping missing file: %s", fp)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="export_{task_id[:8]}.zip"'},
+    )
 
 
 @router.delete("/{task_id}", status_code=204)

@@ -26,6 +26,7 @@ export function EditorView({ onBack }: Props) {
   const { selectedTab, setSelectedTab } = useUIStore();
   const currentTime = useVideoStore((s) => s.currentTime);
   const addMarker = useMarkerStore((s) => s.addMarker);
+  const rallyStatus = useRallyStore((s) => s.status);
   const rallyCandidates = useRallyStore((s) => s.candidates);
   const selectedRallyId = useRallyStore((s) => s.selectedCandidateId);
   const setRallyStatus = useRallyStore((s) => s.setStatus);
@@ -38,7 +39,7 @@ export function EditorView({ onBack }: Props) {
   const tabs: { key: EditorTab; label: string }[] = [
     { key: "markers", label: "标记" },
     { key: "clips", label: "片段" },
-    { key: "auto", label: "回合" },
+    { key: "rallies", label: "回合检测" },
     { key: "info", label: "信息" },
   ];
 
@@ -123,7 +124,7 @@ export function EditorView({ onBack }: Props) {
       },
       KeyM: () => addMarker(currentTime),
     },
-    true
+    true,
   );
 
   return (
@@ -148,16 +149,16 @@ export function EditorView({ onBack }: Props) {
             </button>
           ))}
           <button
-            onClick={() => void runRallyExtraction()}
-            className="px-3 py-1 text-sm rounded-md border hover:bg-accent"
-            disabled={!project.sourceVideo}
+            onClick={() => void runRallyDetection()}
+            className="px-3 py-1 text-sm rounded-md border hover:bg-accent disabled:opacity-50"
+            disabled={!project.sourceVideo || rallyStatus === "running"}
           >
-            提取回合
+            {rallyStatus === "running" ? "检测中..." : "检测回合"}
           </button>
           <button
             onClick={() => setShowExport(true)}
-            className="px-3 py-1 text-sm rounded-md border hover:bg-accent"
-            disabled={project.clips.length === 0}
+            className="px-3 py-1 text-sm rounded-md border hover:bg-accent disabled:opacity-50"
+            disabled={!hasExportableContent}
           >
             导出
           </button>
