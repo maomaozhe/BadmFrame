@@ -4,7 +4,7 @@ BadmFrame 的架构由 [ADR-0002](decisions/0002-technical-architecture.md) 决�
 
 ## 平台与总体架构
 
-BadmFrame 由三个独立部分组成：
+BadmFrame 当前由 iOS、Web 前端、Web 后端和独立模型层组成；后续主产品运行环境是移动端本地运行，Web 主要用于测通链路、评估算法和验证工作流。
 
 ```
 ┌─────────────────────────────┐     ┌──────────────────────────────────────┐
@@ -18,9 +18,10 @@ BadmFrame 由三个独立部分组成：
                                     └──────────────────────────────────────┘
 ```
 
-- **iOS 端**：纯本地应用，AVFoundation 硬件加速处理视频，SwiftData 本地存储
-- **Web 端**：前后端分离，前端 React 在浏览器中播放/标记，后端 FastAPI 负责视频处理和持久化
-- **两端独立运行**，数据不同步，用户在哪端操作就在哪端完成全流程
+- **iOS 端**：纯本地应用，AVFoundation 硬件加速处理视频，SwiftData 本地存储；后续应优先承载真实用户工作流。
+- **Android 端**：当前是 MVP-A 骨架和移动端交互验证方向，后续与 iOS 一起承担移动端本地自动剪辑目标。
+- **Web 端**：前后端分离，前端 React 在浏览器中播放/标记，后端 FastAPI 负责视频处理和持久化；定位为链路验证、算法评估和调试平台，不作为长期主产品依赖。
+- **各端独立运行**，数据不同步，用户在哪端操作就在哪端完成全流程。
 
 ## iOS 端（SwiftUI + AVFoundation + SwiftData）
 
@@ -110,15 +111,17 @@ web/
 | 文件存储 | 本地磁盘 + 定时清理 | 上传/缩略图/导出 |
 | 迁移 | Alembic | 数据库 schema 版本管理 |
 
-## 模型推理层（重启后新增方向）
+## 模型推理层
 
-自动剪辑不再依赖主后端内的全局运动量启发式方案。模型推理应作为独立运行层接入：
+自动剪辑主路线不再依赖主后端内的全局运动量启发式方案。当前 `model/` 已作为独立 TrackNetV3 适配层，主后端通过标准 JSON 和子进程调用消费模型产物：
 
 - 输入：源视频路径、抽帧配置、可选调试 ROI 配置。
 - 输出：`shuttle_points.json`、`court_estimate.json`、`rally_candidates.json`。
-- 运行环境：优先独立于 FastAPI venv，可在 Windows 上使用 Docker、Conda 或远端 GPU。
-- 主后端只消费标准 JSON 结果，并负责保存任务状态、候选回合和用户审查结果。
+- 运行环境：独立于 FastAPI venv；权重、视频和推理输出放在 `model/.local/`，不入库。
+- 主后端负责持久化任务状态、候选回合和用户审查结果；`RallyJob` 记录历史，`content_sha256` 支持同视频去重。
 - 产品主路径不要求用户手动画 ROI；需要自动估计主场地或主活动区域。
+- 后续目标是把有效回合识别和剪辑流程迁移到移动端本地运行；Web/后端模型管线用于验证算法质量、数据契约和端到端流程。
+- 自动候选回合的边界误差目标是小于 1s；达不到时必须保留用户确认和微调能力。
 
 **API 路由**：
 | 方法 | 路径 | 说明 |
@@ -141,6 +144,14 @@ web/
 | WS | `/ws/exports/{task_id}` | 实时进度推送 |
 | GET | `/api/v1/exports/{task_id}/download` | 下载结果 |
 | DELETE | `/api/v1/exports/{task_id}` | 取消任务 |
+| GET | `/api/v1/videos/{video_id}/rallies/{task_id}` | 查询回合检测结果 |
+| POST | `/api/v1/videos/{video_id}/rallies/import` | 导入外部候选回合 JSON |
+| POST | `/api/v1/projects/{project_id}/rallies/apply` | 将已确认候选回合转为 clips |
+| POST | `/api/v1/videos/{video_id}/analysis` | 启发式 AutoClip 实验分析入口 |
+| GET | `/api/v1/videos/{video_id}/analysis/{task_id}` | 查询 AutoClip 实验分析结果 |
+| GET | `/api/v1/projects/{project_id}/analysis` | 查询项目 AutoClip 实验分析历史 |
+| GET | `/api/v1/projects/{project_id}/analysis/latest` | 查询项目最新 AutoClip 实验分析 |
+| POST | `/api/v1/projects/{project_id}/auto-clips/apply` | 将 AutoClip 实验草稿应用为 clips |
 
 **目录结构**：
 ```
@@ -187,7 +198,7 @@ server/
 
 ## Android 端（MVP-A 骨架）
 
-Android 当前采用 Android-first MVP-A 骨架路线：先用 Kotlin + Jetpack Compose 建立可运行产品壳，模型层通过 `RallyProvider` 抽象接入，第一版只使用 deterministic `MockRallyProvider` 生成候选回合。
+Android 当前是 MVP-A 骨架和移动端交互验证方向，不与 iOS/Web 主线同等成熟。它用 Kotlin + Jetpack Compose 建立可运行产品壳，模型层通过 `RallyProvider` 抽象接入，第一版只使用 deterministic `MockRallyProvider` 生成候选回合。
 
 当前 Android 范围：
 
@@ -195,11 +206,12 @@ Android 当前采用 Android-first MVP-A 骨架路线：先用 Kotlin + Jetpack 
 - `android/app`：Compose 单 Activity，展示样例视频占位、提取回合、候选列表、状态统计、确认/删除/调整、转换片段草稿。
 - 暂不接真实视频导入、播放、导出或真实模型。
 
-后续真实模型或服务端分析只需要替换 `RallyProvider` 实现；审查 UI 和片段草稿转换逻辑不应绑定 mock provider。
+后续真实模型优先考虑移动端本地推理；服务端分析可以继续作为验证和调试路径。审查 UI 和片段草稿转换逻辑不应绑定 mock provider。
 
 ## 未决问题
 
 - 多角度视频关联是否需要在 MVP 阶段支持？
-- Web 端是否需要 Docker Compose 一键部署脚本？
-- CI/CD：iOS 端用 Xcode Cloud / GitHub Actions？Web 端用什么部署？
+- 移动端本地模型使用 Core ML、ONNX Runtime、TFLite 还是平台原生方案？
+- Web 端是否需要 Docker Compose 一键部署脚本，还是保持验证工具定位？
+- CI/CD：移动端用 Xcode Cloud / GitHub Actions / Android CI？Web 端只做验证环境还是需要部署？
 - 服务端 FFmpeg 的并发导出策略（同时最多几个任务）？

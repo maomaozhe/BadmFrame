@@ -1,6 +1,6 @@
 # 视频处理流程
 
-本文记录 BadmFrame 当前媒体工作流。技术栈由 [ADR-0002](decisions/0002-technical-architecture.md) 决定：iOS 使用 AVFoundation，Web 后端使用 FFmpeg，Web 前端使用浏览器 `<video>` 和 `<canvas>`。
+本文记录 BadmFrame 当前媒体工作流。技术栈由 [ADR-0002](decisions/0002-technical-architecture.md) 决定：iOS 使用 AVFoundation，Web 后端使用 FFmpeg，Web 前端使用浏览器 `<video>` 和 `<canvas>`。后续主产品形态优先考虑移动端本地运行，Web 主要用于测通链路、评估算法和验证工作流。
 
 ## 当前流程
 
@@ -11,7 +11,7 @@
 5. 生成或展示缩略图，辅助快速定位回合。
 6. 在时间线上打时间点标记。
 7. 手动或围绕标记选择片段起止时间。
-8. 可选运行模型分析，生成候选回合和置信度。
+8. 运行模型分析，自动生成有效回合候选和置信度。
 9. 用户审查候选回合，确认、删除或微调边界。
 10. 提交导出任务，展示进度、完成、取消或失败状态。
 11. 保存项目、标记、片段、候选回合、审查结果和导出状态。
@@ -45,7 +45,9 @@
 
 旧智能剪辑基线见 [ADR-0003](decisions/0003-auto-dead-time-editing.md) 和 [自动剪掉死球时间](auto-dead-time-editing.md)。该路线已暂停，只保留为实验对照。
 
-重启后的自动剪辑路线见 [ADR-0004](decisions/0004-rally-segmentation-by-shuttle-trajectory.md) 和 [基于球轨迹的回合切分](rally-segmentation.md)：以 TrackNetV3 球轨迹、自动主场地估计、轨迹连续性、球速/方向变化、状态机和人工审查为核心。第一版产品承诺是“候选回合需确认”，不是一键生成最终视频。
+重启后的自动剪辑路线见 [ADR-0004](decisions/0004-rally-segmentation-by-shuttle-trajectory.md) 和 [基于球轨迹的回合切分](rally-segmentation.md)：以 TrackNetV3 球轨迹、自动主场地估计、轨迹连续性、球速/方向变化、状态机和人工审查为核心。核心目标是每个有效回合的候选边界误差小于 1s；第一版产品承诺是“候选回合需确认”，不是未经确认的一键生成最终视频。
+
+Web 端当前用于跑通候选生成、审查、应用为 clips 和导出链路；算法质量和契约稳定后，应迁移到移动端本地推理和本地剪辑。
 
 ## 失败模式
 
@@ -67,6 +69,7 @@
 - 是否需要代理文件来改善超长视频预览。
 - Web 端缩略图最终由前端生成、后端生成，还是混合策略。
 - Windows 模型环境用 Docker、Conda 还是远端 GPU 作为第一落点。
+- 移动端本地模型推理和本地剪辑如何在耗时、耗电、包体和硬件兼容之间取舍。
 
 ## Agent 注意事项
 
